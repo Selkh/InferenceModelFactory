@@ -20,6 +20,9 @@ limitations under the License.
 import sys
 sys.path.append('..')
 from manager import BaseModelFactory
+import common.session
+
+ONNXSession = common.session.optional_sessions['onnx']
 
 class OnnxModelFactory(BaseModelFactory):
    name = 'onnx'

@@ -17,28 +17,12 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import sys
-sys.path.append("..")
-from .base_onnx import OnnxModelFactory, ONNXSession
-from engine import CommonEngine
+SESSION_FACTORY = {}
 
-
-class RN50(OnnxModelFactory):
-    model = "resnet50"
-
-    def create_engine() ->CommonEngine:
-        return RN50Engine()
-
-
-class RN50Engine(CommonEngine):
-    def preprocessing(self, *args, **kwargs):
-        print("rn50 engine preprocessing")
-
-    def run(self, *args, **kwargs):
-        sess = ONNXSession()
-        print("session name: ", sess.name())
-        print("rn50 engine run")
-
-    def postprocessing(self, *args, **kwargs):
-        print("rn50 engine postprocessing")
+def register_session(cls):
+    cls_name = cls.name(cls)
+    def register_internal(cls):
+        SESSION_FACTORY[cls_name] = cls
+        
+    return register_internal(cls)
 

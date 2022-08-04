@@ -16,29 +16,8 @@ limitations under the License.
 """
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+from .onnxruntime_session import OrtSession
+from .tensorflow_session import TensorflowSession
+from .session_register import SESSION_FACTORY
 
-import sys
-sys.path.append("..")
-from .base_onnx import OnnxModelFactory, ONNXSession
-from engine import CommonEngine
-
-
-class RN50(OnnxModelFactory):
-    model = "resnet50"
-
-    def create_engine() ->CommonEngine:
-        return RN50Engine()
-
-
-class RN50Engine(CommonEngine):
-    def preprocessing(self, *args, **kwargs):
-        print("rn50 engine preprocessing")
-
-    def run(self, *args, **kwargs):
-        sess = ONNXSession()
-        print("session name: ", sess.name())
-        print("rn50 engine run")
-
-    def postprocessing(self, *args, **kwargs):
-        print("rn50 engine postprocessing")
-
+optional_sessions = SESSION_FACTORY
