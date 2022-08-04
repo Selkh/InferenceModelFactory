@@ -1,0 +1,3 @@
+[submodule "onnx/onnx_models"]
+	path = onnx/onnx_models
+	url = git@github.com:onnx/models.git
