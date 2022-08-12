@@ -17,26 +17,25 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-
-import sys
-sys.path.append("..")
-from .base_onnx import OnnxModelFactory
-from engine import CommonEngine
+from .base import OnnxModelFactory, ONNXSession
+from engine import BaseEngine
 
 
-class Yolo(OnnxModelFactory):
+class yolo(OnnxModelFactory):
     model = "yolo"
 
-    def create_engine() ->CommonEngine:
+    def new_model() -> BaseEngine:
         return YoloEngine()
 
 
-class YoloEngine(CommonEngine):
-    def preprocessing(self, *args, **kwargs):
+class YoloEngine(BaseEngine):
+    def preprocess(self, *args, **kwargs):
         print("yolo engine preprocessing")
 
     def run(self, *args, **kwargs):
+        sess = ONNXSession()
+        print("session name: ", sess.name())
         print("yolo engine run")
 
-    def postprocessing(self, *args, **kwargs):
+    def postprocess(self, *args, **kwargs):
         print("yolo engine postprocessing")

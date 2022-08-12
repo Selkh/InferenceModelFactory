@@ -18,12 +18,23 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 import sys
-sys.path.append('..')
-from manager import BaseModelFactory
-import common.session
+sys.path.append("..")
+from common.model_factory import *
 
-ONNXSession = common.session.optional_sessions['onnx']
+class FakeModelFactory(ModelFactory):
+    name = "fake-fmk"
+    model = "undefined"
 
-class OnnxModelFactory(BaseModelFactory):
-   name = 'onnx'
-   model = 'undefined'
+class Fake1Model(FakeModelFactory):
+    model = "fake1"
+
+models = FakeModelFactory.display_all()
+
+assert len(models) == 1
+assert FakeModelFactory.is_registered("fake-fmk-fake1")
+c = FakeModelFactory.get("fake-fmk-fake1")
+assert c is Fake1Model
+
+FakeModelFactory.reset()
+
+assert len(models) == 0

@@ -18,20 +18,47 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
 
-class BaseEngine(ABC):
-
+class BaseSession(ABC):
     @abstractmethod
-    def preprocess(self, *args, **kwargs):
-    #def preprocessing():
+    def preprocess(self):
         pass
 
     @abstractmethod
-    def run(self, *args, **kwargs):
-    #def run():
-        print("Common engine run")
+    def compute(self):
         pass
 
     @abstractmethod
-    def postprocess(self, *args, **kwargs):
-    #def postprocessing():
+    def postprocess(self):
         pass
+
+
+class OrtModelSessionInterface(BaseSession):
+    @abstractmethod
+    def preprocess(self):
+        pass
+
+    @abstractmethod
+    def compute(self):
+        print("ort model session run")
+
+    @abstractmethod
+    def postprocess(self):
+        pass
+
+
+class OrtModelSession():
+    def __init__(self):
+        pass
+
+OrtModelSessionInterface.register(OrtModelSession)
+
+
+class RN50Session(OrtModelSession):
+    def __init__(self):
+        super(RN50Session, self).__init__()
+
+o = OrtModelSession()
+o.compute()
+
+r = RN50Session()
+r.compute()

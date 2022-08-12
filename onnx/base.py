@@ -17,20 +17,26 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+
+from common.model_factory import *
+from common.session import optional_sessions
 from engine import BaseEngine
 
-class Monitor(object):
-    """builder mode"""
-    def __init__(self, *args, **kwargs):
-        self.args = args
-        self.kwargs = kwargs
+ONNXSession = optional_sessions['onnx']
 
-    def Execute(self, engine: BaseEngine):
-        processed_input = engine.preprocess(self.args)
-        output_data = engine.run(processed_input)
-        processed_output = engine.postprocess(output_data)
-        return processed_output
+class OnnxModelFactory(ModelFactory):
+   name = 'onnx'
+   model = 'undefined'
 
-    def __del__(self):
-        # TODO: Generate Final Report
-        pass
+   # def __init__(cls):
+   #     pass
+      # print("================================")
+      # if len(cls.__abstractmethods__) > 0:
+      #     for name in cls.__abstractmethods__:
+      #         if name in cls.__dict__.keys():
+      #             cls.__abstractmethods__.clear()
+      #         else:
+      #              raise TypeError()
+
+   # def new_model() -> BaseEngine:
+   #     raise NotImplementedError("Base onnx model factory has no concrete implement for new model. Each model registered should fill specific one.")

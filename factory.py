@@ -18,11 +18,11 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 import onnx
-from manager import BaseModelFactory
+from common.model_factory import *
 
 def create_model(name: str):
-    all = BaseModelFactory.display_all()
+    all = ModelFactory.display_all()
     if name in all:
-        return BaseModelFactory.get(name).create_engine()
+        return ModelFactory.get(name).new_model()
     else:
         raise ModelUnimplementException()

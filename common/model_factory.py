@@ -17,27 +17,42 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import abc
+from abc import ABC, abstractmethod
 
 class ModelUnimplementException(Exception):
     pass
 
 class ModelNameConflictException(Exception):
     def __init__(self, name: str):
-        print("name: has been registered, please check if same or rename".format(name))
+        print("\nname: {} has been registered, please check if same or rename\n".format(name))
 
 
 class ModelNameUndefinedException(Exception):
     pass
 
+class ModelNotCompleteException(Exception):
+    def __init__(self, name: str, method: str):
+        print("\nmodel: {} does not have method: {}, please realize it\n".format(name, method))
 
-class ModelManager(type):
+
+class BaseModelFactory(type):
     __framework_name = 'name'
     __model_name = 'model'
     __registered_map = {}
 
+    __abstractmethods = set(['new_model'])
+
     def __new__(mcs, *args, **kwargs):
-        cls = super(ModelManager, mcs).__new__(mcs, *args, **kwargs)
+        cls = super(BaseModelFactory, mcs).__new__(mcs, *args, **kwargs)
+
+        if cls.__name__ == 'ModelFactory' or cls.model == 'undefined':
+            return cls
+
+        # A similar implement of abc.abstractmethod, as each derived model class must realize its create method: new_model. We tend to catch error earlier before instancize.
+        for method_name in mcs.__abstractmethods:
+            if method_name not in cls.__dict__.keys():
+                raise ModelNotCompleteException(cls.model, method_name)
+
         mcs.__register_new_model(cls)
         return cls
 
@@ -48,8 +63,6 @@ class ModelManager(type):
             return
 
         model_name = getattr(cls, mcs.__model_name, None)
-        if model_name == 'undefined':
-            return
         if not model_name:
             raise ModelNameUndefinedException()
 
@@ -63,13 +76,21 @@ class ModelManager(type):
         return type(cls).__registered_map
 
     def get(cls, name: str):
-        all_models = cls.display_all()
-        if name not in all_models:
+        if not cls.is_registered(name):
             raise ModelUnimplementException()
-        return all_models[name]
+        return cls.__registered_map[name]
+
+    def is_registered(cls, name: str):
+        all_models = cls.display_all()
+        if name in all_models:
+            return True
+        else:
+            return False
+
+    def reset(cls):
+       cls.__registered_map.clear() 
 
 
-class BaseModelFactory(metaclass = ModelManager):
-    @abc.abstractmethod
-    def create_engine():
-        pass
+class ModelFactory(metaclass = BaseModelFactory):
+    pass
+
