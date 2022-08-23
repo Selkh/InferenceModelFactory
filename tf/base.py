@@ -16,20 +16,4 @@ limitations under the License.
 """
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
-
-import abc
-
-
-class Session(object):
-
-    __slots__ = []
-
-    def __init__(self):
-        pass
-
-    @abc.abstractmethod
-    def name(self):
-        pass
-    @abc.abstractmethod
-    def run(self):
-        pass
+import tensorflow as tf

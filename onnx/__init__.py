@@ -1,2 +1,2 @@
-from .resnet50 import *
+from .resnet import *
 from .yolo import *

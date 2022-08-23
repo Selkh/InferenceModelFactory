@@ -17,10 +17,41 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import argparse
 import onnx
+import tf
 from common.model_factory import *
+from common.options import get_default_options, new_options
 
-def create_model(name: str):
+class RepeatedCallException(Exception):
+    def __init__(self):
+        print("function: create_model_by_argument could only be called once in a single process. If need repeated calls, please use create_model_by_name instead")
+
+def concat_string(frame: str, model: str):
+    return frame + '-' + model
+
+
+def create_model_by_argument():
+    options = get_default_options()
+    try:
+        options.add_argument('--frame', required=True)
+        options.add_argument('--model', required=True)
+        options.add_argument('--device', required=False)
+    #except argparse.ArgumentError as ex:
+    except Exception:
+        raise RepeatedCallException()
+
+    known_args = options.parse_known_args()
+    name = concat_string(known_args.frame, known_args.model)
+
+    all = ModelFactory.display_all()
+    if name in all:
+        return ModelFactory.get(name).new_model()
+    else:
+        raise ModelUnimplementException()
+
+
+def create_model_by_name(name: str):
     all = ModelFactory.display_all()
     if name in all:
         return ModelFactory.get(name).new_model()

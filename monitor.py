@@ -17,7 +17,23 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from engine import BaseEngine
+from common.model import Model
+from common.device import Device
+from common.options import Options
+
+
+def create_set_function(options, key, *args, **kwargs):
+    def set_attr(value):
+        setattr(options, '__' + key, value)
+
+    return set_attr
+
+def create_get_function(options, key, *args, **kwargs):
+    def get_attr():
+        return getattr(options, '__' + key)
+
+    return get_attr
+
 
 class Monitor(object):
     """builder mode"""
@@ -25,10 +41,38 @@ class Monitor(object):
         self.args = args
         self.kwargs = kwargs
 
-    def Execute(self, engine: BaseEngine):
-        processed_input = engine.preprocess(self.args)
-        output_data = engine.run(processed_input)
-        processed_output = engine.postprocess(output_data)
+    def Execute(self, model: Model):
+
+        options = model.get_options()
+        args = options.parse_args()
+
+        for key in args.__dict__:
+            #import pdb;pdb.set_trace()
+            value = getattr(args, key)
+
+            setattr(options, '__' + key, value)
+
+            set_func_name = 'set_' + key
+            new_set_func = create_set_function(options, key)
+            setattr(options, set_func_name, new_set_func)
+
+            get_func_name = 'get_' + key
+            new_get_func = create_get_function(options, key)
+            setattr(options, get_func_name, new_get_func)
+
+        # device_name = options.get('device')
+        device_name = options.get_device()
+        if device_name:
+            Device.parse(device_name)
+        else:
+            Device.parse('gcu')
+        device = Device()
+        model.set_device(device)
+
+        processed_input = model.preprocess()
+        output_data = model.run(processed_input)
+        processed_output = model.postprocess(output_data)
+
         return processed_output
 
     def __del__(self):
