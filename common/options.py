@@ -17,9 +17,15 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+__all__ = ['get_default_options', 'new_options', 'reset_options', 'remove_options']
+
 import sys
 import threading
 import argparse
+
+class ModelPathNotSetException(Exception):
+    def __init__(self):
+        print("argument: '--model_path' is necessary for onnxruntime ")
 
 class Options:
     """Agent mode, an Options instance handle an ArgumentParser, which could be add_argument by users in '__init__' of Model instance. Some methods of Parser is wrapped so that user could call familiar interface to achieve same function"""
@@ -34,10 +40,10 @@ class Options:
         self.__parser.add_argument(*args, **kwargs)
 
     def parse_args(self, args=None, namespace=None):
-        return self.__parser.parse_args(args, namespace)
+        return self.__parser.parse_known_args(args, namespace)[0]
 
     def parse_known_args(self):
-        return self.__parser.parse_known_args()[0]
+        return self.__parser.parse_known_args()
 
     def get(self, key):
         if key.startswith('__'):
@@ -69,17 +75,15 @@ class OptionsStack(threading.local):
 
     def push(self, options: Options):
         self.options_stack.append(options)
-        print("len: ", len(self.options_stack))
+
+    def remove(self, options: Options):
+        self.options_stack.remove(options)
+        del options
 
 _options_stack = OptionsStack()
 
-global count
-count = 0
 
 def get_default_options():
-    global count
-    count += 1
-    print("count: ", count)
     return _options_stack.get_default_options()
 
 def new_options():
@@ -89,6 +93,10 @@ def new_options():
 
 def reset_options():
     _options_stack.reset()
+
+def remove_options(options: Options):
+    _options_stack.remove(options)
+
 
 #def create_set_function(*args):
 #    def set_attr(self, value):

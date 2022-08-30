@@ -19,7 +19,7 @@ limitations under the License.
 from abc import ABC, abstractmethod
 from .device import Device
 from .session import BaseSession
-from .options import Options, get_default_options
+from .options import Options, new_options
 
 class ModelNotSetOptionException(Exception):
     def __init__(self):
@@ -29,39 +29,46 @@ class ModelNotSetDeviceException(Exception):
     def __init__(self):
         print("please set device to model before run")
 
-class Model(ABC):
+class ModelNotInitException(Exception):
+    def __init__(self):
+        print("If __init__ of concrete model is overrided, 
+              __init__ of super class must be called in concrete model")
 
-    __options = get_default_options()
+class Model(ABC):
+    __slot__ = ['device', 'options']
+
+    def __init__(self):
+        self.options = new_options()
 
     def set_options(self, options: Options):
-        self.__options = options
+        # setattr(self, 'options', options)
+        self.options = options
 
     def get_options(self) -> Options:
-        return self.__options
+        if not hasattr(self, 'options'):
+            raise ModelNotInitException()
+        return self.options
 
     def set_device(self, device: Device):
-        self.__device = device
+        # setattr(self, 'device', device)
+        self.device = device
 
     def get_device(self):
         if not hasattr(self, 'device'):
             raise ModelNotSetDeviceException()
-        return self.__device
+        return self.device
 
-    def create_session(self) -> BaseSession:
-        pass
+    # @abstractmethod
+    # def create_session(self) -> BaseSession:
+    #     pass
 
     @abstractmethod
     def preprocess(self):
         pass
 
     @abstractmethod
-    def run_internal(self, session: BaseSession):
+    def run(self):
         pass
-
-    def run(self, *args, **kwargs):
-        sess = self.create_session()
-        output = self.run_internal(sess)
-        return output
 
     @abstractmethod
     def postprocess(self):

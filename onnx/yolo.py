@@ -17,7 +17,7 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from .base import OnnxModelFactory, ONNXSession
+from .base import OnnxModelFactory, OnnxModel
 from common.model import Model
 
 
@@ -28,13 +28,16 @@ class yolo(OnnxModelFactory):
         return Yolo()
 
 
-class Yolo(Model):
+class Yolo(OnnxModel):
+    def __init__(self):
+        self.options = self.get_options()
+        self.options.add_argument('--model_path')
+
     def preprocess(self, *args, **kwargs):
         print("yolo engine preprocessing")
 
-    def run(self, *args, **kwargs):
-        sess = ONNXSession()
-        sess.run("")
+    def run_internal(self, *args, **kwargs):
+        pass
 
     def postprocess(self, *args, **kwargs):
         print("yolo engine postprocessing")

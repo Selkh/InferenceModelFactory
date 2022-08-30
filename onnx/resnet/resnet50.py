@@ -17,19 +17,19 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from onnx.base import OnnxModelFactory, ONNXSession
-from common.model import Model
+from onnx.base import OnnxModelFactory, OnnxModel
 
 
 class RN50Factory(OnnxModelFactory):
     model = "resnet50"
 
-    def new_model() -> Model:
+    def new_model():
         return RN50()
 
 
-class RN50(Model):
+class RN50(OnnxModel):
     def __init__(self):
+        super(RN50, self).__init__()
         self.options = self.get_options()
         self.options.add_argument('--model_path')
 

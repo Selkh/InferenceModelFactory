@@ -18,7 +18,6 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 from common.model import Model
-from common.device import Device
 from common.options import Options
 
 
@@ -46,9 +45,7 @@ class Monitor(object):
         options = model.get_options()
         args = options.parse_args()
 
-        for key in args.__dict__:
-            #import pdb;pdb.set_trace()
-            value = getattr(args, key)
+        for key, value in vars(args).items():
 
             setattr(options, '__' + key, value)
 
@@ -59,15 +56,6 @@ class Monitor(object):
             get_func_name = 'get_' + key
             new_get_func = create_get_function(options, key)
             setattr(options, get_func_name, new_get_func)
-
-        # device_name = options.get('device')
-        device_name = options.get_device()
-        if device_name:
-            Device.parse(device_name)
-        else:
-            Device.parse('gcu')
-        device = Device()
-        model.set_device(device)
 
         processed_input = model.preprocess()
         output_data = model.run(processed_input)

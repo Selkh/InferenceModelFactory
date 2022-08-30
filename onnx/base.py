@@ -25,45 +25,145 @@ limitations under the License.
 from common.model_factory import *
 from common.session import *
 from common.model import Model
+from common.device import Device
+from common.options import ModelPathNotSetException, Options
+
 
 class OnnxModelFactory(ModelFactory):
    name = 'onnx'
    model = 'undefined'
 
-@register_session
-class OrtSession(BaseSession):
 
-    def name(self):
-        return "onnx"
+class OrtSession(BaseSession):
+    def __init__(self, model_path):
+        import onnxruntime as rt
+        self.model_path = model_path
+        self.sess = rt.InferenceSession(model_path)
 
     def version(self):
-        # return rt.__version__
         return "1.9.1"
 
-    def run(self, model_path, inputs=None, outputs=None):
-        print("onnxruntime run")
-        #option = rt.SessionOptions()
-        #self.sess = rt.InferenceSession(model_path, option)
-        #
-        #if not inputs:
-        #    self.inputs = [meta.name for meta in self.sess.get_inputs()]
-        #else:
-        #    self.inputs = inputs
+    def get_session_options(self):
+        return self.sess.get_session_options()
 
-        #if not outputs:
-        #    self.outputs = [meta.name for meta in self.sess.get_outputs()]
-        #else:
-        #    self.outputs = outputs
-        
-ONNXSession = SESSION_FACTORY['onnx']
+    def get_inputs(self):
+        return self.sess.get_inputs()
+
+    def get_outputs(self):
+        return self.sess.get_outputs()
+
+    def get_overridable_initializers(self):
+        return self.sess.get_overridable_initializers()
+
+    def get_modelmeta(self):
+        return self.sess.get_modelmeta()
+
+    def get_providers(self):
+        return self.sess.get_providers()
+
+    def get_provider_options(self):
+        return self.sess.get_provider_options()
+
+    def set_providers(self, providers=None, provider_options=None):
+        self.sess.set_providers(providers, provider_options)
+
+    def disable_fallback(self):
+        self.sess.disable_fallback()
+
+    def enable_fallback(self):
+        self.sess.enable_fallback()
+
+    def run(self, output_names, input_feed, run_options=None):
+        return self.sess.run(output_names, input_feed, run_options=None)
+
+    def run_with_ort_values(self, output_names, input_dict_ort_values, run_options=None):
+        return self.sess.run_with_ort_values(output_names, input_dict_ort_values, run_options=None)
+
+    def end_profiling(self):
+        self.sess.end_profiling()
+
+    def get_profiling_start_time_ns(self):
+        return self.sess.get_profiling_start_time_ns()
+
+    def io_binding(self):
+        return self.sess.io_binding()
+
+    def run_with_iobinding(self, iobinding, run_options=None):
+        return self.sess.run_with_iobinding(iobinding, run_options=None)
+
+@register_session
+class OrtCPUSession(OrtSession):
+
+    def name(self):
+        return "onnx-cpu"
+
+    def set_providers(self, provider_options=None):
+        providers = ['CPUExecutionProvider']
+        super().set_providers(providers, provider_options)
+
+@register_session
+class OrtGPUSession(OrtSession):
+
+    def name(self):
+        return "onnx-gpu"
+
+    def set_providers(self, provider_options=None):
+        providers = ['CUDAExecutionProvider']
+        super().set_providers(providers, provider_options)
+
+
+@register_session
+class OrtGCUSession(OrtSession):
+
+    def name(self):
+        return "onnx-gcu"
+
+    def set_providers(self, provider_options=None):
+        providers = ['TopsInferenceExecutionProvider']
+        super().set_providers(providers, provider_options)
 
 
 class OnnxModel(Model):
+
+    @abstractmethod
+    def run_internal(self, session: BaseSession, ):
+        return session.run
+
+    def run(self, *args, **kwargs):
+        sess = self.create_session()
+        output = self.run_internal(sess, args, kwargs)
+        return output
+
     def create_session(self) -> BaseSession:
-       return ONNXSession() 
 
+        options = self.get_options()
 
+        device_name = options.get_device()
+        if device_name:
+            Device.parse(device_name)
+        else:
+            Device.parse('gcu')
+        device = Device()
+        self.set_device(device)
 
+        try:
+            model_path = options.get_model_path()
+        except AttributeError as ex:
+            raise ModelPathNotSetException()
+
+        sess = SESSION_FACTORY['onnx-' + device.name()](model_path)
+
+        provider_options = [{}]
+        if device.name() == 'gcu':
+            key_list = ['output_names', 'compiled_batchsize', 'export_executable', 'load_executable']
+
+            for key in key_list:
+                value = options.get(key)
+                if value:
+                    provider_options[0].update({key: value})
+
+        sess.set_providers(provider_options)
+        return sess
 
 
    # def __init__(cls):
