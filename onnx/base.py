@@ -22,12 +22,17 @@ limitations under the License.
 # except ModuleNotFoundError as ex:
 #     print(ex)
 
+from abc import ABC, abstractmethod
 from common.model_factory import *
 from common.session import *
 from common.model import Model
 from common.device import Device
-from common.options import ModelPathNotSetException, Options
+from common.options import Options
 
+
+class OnnxModelPathNotSetException(Exception):
+    def __init__(self):
+        print("argument: '--model_path' is necessary for onnxruntime ")
 
 class OnnxModelFactory(ModelFactory):
    name = 'onnx'
@@ -149,7 +154,7 @@ class OnnxModel(Model):
         try:
             model_path = options.get_model_path()
         except AttributeError as ex:
-            raise ModelPathNotSetException()
+            raise OnnxModelPathNotSetException()
 
         sess = SESSION_FACTORY['onnx-' + device.name()](model_path)
 

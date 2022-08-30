@@ -17,6 +17,8 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+__all__ = ['ModelFactory']
+
 class ModelUnimplementException(Exception):
     pass
 
@@ -91,4 +93,3 @@ class BaseModelFactory(type):
 
 class ModelFactory(metaclass = BaseModelFactory):
     pass
-

@@ -33,7 +33,13 @@ class RN50(OnnxModel):
         self.options = self.get_options()
         self.options.add_argument('--model_path')
 
+    def get_model(self):
+        return self.options.get_model_path()
+
     def preprocess(self, *args, **kwargs):
+        # model_path = self.options.get_model_path()
+        model_path = self.get_model()
+        print("model path: ", model_path)
         print("rn50 engine preprocessing")
 
     def run_internal(self, sess, *args, **kwargs):

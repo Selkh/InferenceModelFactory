@@ -23,14 +23,10 @@ import sys
 import threading
 import argparse
 
-class ModelPathNotSetException(Exception):
-    def __init__(self):
-        print("argument: '--model_path' is necessary for onnxruntime ")
-
 class Options:
     """Agent mode, an Options instance handle an ArgumentParser, which could be add_argument by users in '__init__' of Model instance. Some methods of Parser is wrapped so that user could call familiar interface to achieve same function"""
     def __init__(self):
-        self.__parser = argparse.ArgumentParser()
+        self.__parser = argparse.ArgumentParser(allow_abbrev=False)
 
     def get_parser(self):
         # Usually where's no need to get parser but just in case
@@ -62,7 +58,6 @@ class OptionsStack(threading.local):
         self.options_stack = []
 
     def get_default_options(self):
-        # import pdb;pdb.set_trace()
         if self.options_stack:
             return self.options_stack[-1]
         else:
