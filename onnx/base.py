@@ -138,8 +138,8 @@ class OnnxModel(Model):
 
         options = self.get_options()
 
-        device_name = options.get_device()
-        if device_name:
+        if hasattr(options, 'get_device'):
+            device_name = options.get_device()
             Device.parse(device_name)
         else:
             Device.parse('gcu')

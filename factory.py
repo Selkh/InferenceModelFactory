@@ -31,7 +31,6 @@ def create_model_by_argument():
     options = new_options()
     options.add_argument('--frame', required=True)
     options.add_argument('--model', required=True)
-    options.add_argument('--device', required=False)
 
     args = options.parse_args()
     name = concat_string(args.frame, args.model)

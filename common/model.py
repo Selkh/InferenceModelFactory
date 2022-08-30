@@ -31,8 +31,7 @@ class ModelNotSetDeviceException(Exception):
 
 class ModelNotInitException(Exception):
     def __init__(self):
-        print("If __init__ of concrete model is overrided, 
-              __init__ of super class must be called in concrete model")
+        print("If __init__ of concrete model is overrided, __init__ of super class must be called in concrete model")
 
 class Model(ABC):
     __slot__ = ['device', 'options']
