@@ -17,6 +17,7 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import time
 from common.model import Model
 from common.options import Options
 
@@ -39,11 +40,17 @@ class Monitor(object):
     def __init__(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
+        self.start = time.time()
+        self.count = 0
 
     def Execute(self, model: Model):
 
+        self.count += 1
+        print("Execute model with class name: {}".format(type(model).__name__))
+
         options = model.get_options()
         args = options.parse_args()
+        print(args.__dict__)
 
         for key, value in vars(args).items():
 
@@ -65,4 +72,5 @@ class Monitor(object):
 
     def __del__(self):
         # TODO: Generate Final Report
-        pass
+        end = time.time()
+        print("Totally execute {} models, spend {}".format(self.count, end - self.start))

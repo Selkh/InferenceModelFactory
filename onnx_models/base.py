@@ -22,6 +22,7 @@ limitations under the License.
 # except ModuleNotFoundError as ex:
 #     print(ex)
 
+import time
 from abc import ABC, abstractmethod
 from common.model_factory import *
 from common.session import *
@@ -44,6 +45,9 @@ class OrtSession(BaseSession):
         import onnxruntime as rt
         self.sess = rt.InferenceSession(path_or_bytes, sess_options, **kwargs)
         # self.__version = rt.__version__
+
+        self.loop = 0
+        self.time = []
 
     @property
     def version(self):
@@ -81,7 +85,12 @@ class OrtSession(BaseSession):
         self.sess.enable_fallback()
 
     def run(self, output_names, input_feed, run_options=None):
-        return self.sess.run(output_names, input_feed, run_options=None)
+        self.loop += 1
+        start = time.time()
+        output = self.sess.run(output_names, input_feed, run_options=None)
+        end = time.time()
+        self.time.append(end - start)
+        return output
 
     def run_with_ort_values(self, output_names, input_dict_ort_values, run_options=None):
         return self.sess.run_with_ort_values(output_names, input_dict_ort_values, run_options=None)
