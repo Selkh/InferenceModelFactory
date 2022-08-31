@@ -64,9 +64,10 @@ class Monitor(object):
             new_get_func = create_get_function(options, key)
             setattr(options, get_func_name, new_get_func)
 
-        processed_input = model.preprocess()
-        output_data = model.run(processed_input)
-        processed_output = model.postprocess(output_data)
+        model.run()
+        # processed_input = model.preprocess()
+        # output_data = model.run(processed_input)
+        # processed_output = model.postprocess(output_data)
 
         return processed_output
 

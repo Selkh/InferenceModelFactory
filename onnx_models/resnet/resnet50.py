@@ -42,8 +42,9 @@ class RN50(OnnxModel):
         print("model path: ", model_path)
         print("rn50 engine preprocessing")
 
-    def run_internal(self, sess, *args, **kwargs):
-        pass
+    def run_internal(self, sess):
+        preprocessed_input = self.preprocess()
+
 
     def postprocess(self, *args, **kwargs):
         print("rn50 engine postprocessing")

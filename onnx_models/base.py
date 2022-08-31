@@ -35,6 +35,10 @@ class OnnxModelPathNotSetException(Exception):
     def __init__(self):
         print("argument: '--model_path' is necessary for onnxruntime ")
 
+class OnnxModelArgumentException(Exception):
+    def __init__(self, args: str):
+        print("method 'run_internal' can have only one positional argument with type 'BaseSession', but additionally got: {}".format(str(args)[1:-1]))
+
 class OnnxModelFactory(ModelFactory):
    name = 'onnx'
    model = 'undefined'
@@ -143,31 +147,20 @@ class OnnxModel(Model):
 
     @abstractmethod
     def run_internal(self, session: BaseSession):
-        pass
+        return []
 
-    def run(self, *args, **kwargs):
-        sess = self.create_session()
-        output = self.run_internal(sess, args, kwargs)
-        return output
-
-    def create_session(self) -> BaseSession:
-
+    def run(self):
         options = self.get_options()
 
-        if hasattr(options, 'get_device'):
-            device_name = options.get_device()
-            Device.parse(device_name)
-        else:
-            Device.parse('gcu')
+        sess = self.create_session_by_options(options)
+        output = self.run_internal(sess)
+        return output
+
+    def create_session(self, device: str, model_path: str) -> BaseSession:
+        Device.parse(device)
         device = Device()
         self.set_device(device)
 
-        try:
-            model_path = options.get_model_path()
-        except AttributeError as ex:
-            raise OnnxModelPathNotSetException()
-
-        # sess_options is ignored as rarely used
         sess = SESSION_FACTORY['onnx-' + device.type](model_path)
 
         provider_options = [{}]
@@ -184,6 +177,66 @@ class OnnxModel(Model):
 
         sess.set_providers(provider_options)
         return sess
+
+    def create_session_by_options(self, options) -> BaseSession:
+        if hasattr(options, 'get_device'):
+            device_name = options.get_device()
+        else:
+            device_name = 'gcu'
+
+        if hasattr(options, 'get_model_path'):
+            model_path = options.get_model_path()
+        else:
+            raise OnnxModelPathNotSetException()
+
+        return create_session(device_name, model_path)
+
+    def create_session_func_by_device(self, device: str):
+        # Used to create multi-session on the same device with differente model paths
+        return partial(create_session, device = device)
+
+    def create_session_func_by_model(self, model_path: str):
+        # Used to create multi-session on different devices with the same path
+        return partial(create_session, model_path = model_path)
+
+    def __new__(cls, *args, **kwargs):
+        out_cls = super(OnnxModel, cls).__new__(cls, *args, **kwargs)
+        if cls.__dict__['run_internal'].__code__.co_argcount > 2:
+            raise OnnxModelArgumentException(cls.__dict__['run_internal'].__code__.co_varnames[2:])
+
+
+    # def create_session(self, options) -> BaseSession:
+
+    #     if hasattr(options, 'get_device'):
+    #         device_name = options.get_device()
+    #         Device.parse(device_name)
+    #     else:
+    #         Device.parse('gcu')
+    #     device = Device()
+    #     self.set_device(device)
+
+    #     try:
+    #         model_path = options.get_model_path()
+    #     except AttributeError as ex:
+    #         raise OnnxModelPathNotSetException()
+
+    #     # sess_options is ignored as rarely used
+    #     sess = SESSION_FACTORY['onnx-' + device.type](model_path)
+
+    #     provider_options = [{}]
+    #     if device.name == 'gcu':
+    #         key_list = ['output_names', 'compiled_batchsize', 'export_executable', 'load_executable']
+
+    #         for key in key_list:
+    #             value = options.get(key)
+    #             if value:
+    #                 provider_options[0].update({key: value})
+
+    #         provider_options[0].update({'device': device.id})
+    #         provider_options[0].update({'cluster': device.cluster_ids})
+
+    #     sess.set_providers(provider_options)
+    #     return sess
 
 
    # def __init__(cls):
