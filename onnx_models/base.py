@@ -42,7 +42,7 @@ class OnnxModelFactory(ModelFactory):
 class OrtSession(BaseSession):
     def __init__(self, path_or_bytes, sess_options=None, **kwargs):
         import onnxruntime as rt
-        self.sess = rt.InferenceSession(path_or_bytes, sess_options, kwargs)
+        self.sess = rt.InferenceSession(path_or_bytes, sess_options, **kwargs)
         # self.__version = rt.__version__
 
     @property
@@ -170,8 +170,8 @@ class OnnxModel(Model):
                 if value:
                     provider_options[0].update({key: value})
 
-            provider_options[0].update({device: device.id})
-            provider_options[0].update({cluster: device.cluster_ids})
+            provider_options[0].update({'device': device.id})
+            provider_options[0].update({'cluster': device.cluster_ids})
 
         sess.set_providers(provider_options)
         return sess
