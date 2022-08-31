@@ -35,9 +35,9 @@ class OnnxModelPathNotSetException(Exception):
     def __init__(self):
         print("argument: '--model_path' is necessary for onnxruntime ")
 
-class OnnxModelArgumentException(Exception):
-    def __init__(self, args: str):
-        print("method 'run_internal' can have only one positional argument with type 'BaseSession', but additionally got: {}".format(str(args)[1:-1]))
+# class OnnxModelArgumentException(Exception):
+#     def __init__(self, args: str):
+#         print("method 'run_internal' can have only one positional argument with type 'BaseSession', but additionally got: {}".format(str(args)[1:-1]))
 
 class OnnxModelFactory(ModelFactory):
    name = 'onnx'
@@ -168,7 +168,7 @@ class OnnxModel(Model):
             key_list = ['output_names', 'compiled_batchsize', 'export_executable', 'load_executable']
 
             for key in key_list:
-                value = options.get(key)
+                value = self.options.get(key)
                 if value:
                     provider_options[0].update({key: value})
 
@@ -189,20 +189,20 @@ class OnnxModel(Model):
         else:
             raise OnnxModelPathNotSetException()
 
-        return create_session(device_name, model_path)
+        return self.create_session(device_name, model_path)
 
     def create_session_func_by_device(self, device: str):
         # Used to create multi-session on the same device with differente model paths
-        return partial(create_session, device = device)
+        return partial(self.create_session, device = device)
 
     def create_session_func_by_model(self, model_path: str):
         # Used to create multi-session on different devices with the same path
-        return partial(create_session, model_path = model_path)
+        return partial(self.create_session, model_path = model_path)
 
-    def __new__(cls, *args, **kwargs):
-        out_cls = super(OnnxModel, cls).__new__(cls, *args, **kwargs)
-        if cls.__dict__['run_internal'].__code__.co_argcount > 2:
-            raise OnnxModelArgumentException(cls.__dict__['run_internal'].__code__.co_varnames[2:])
+    # def __new__(cls, *args, **kwargs):
+    #     out_cls = super(OnnxModel, cls).__new__(cls, *args, **kwargs)
+    #     if cls.__dict__['run_internal'].__code__.co_argcount > 2:
+    #         raise OnnxModelArgumentException(cls.__dict__['run_internal'].__code__.co_varnames[2:])
 
 
     # def create_session(self, options) -> BaseSession:

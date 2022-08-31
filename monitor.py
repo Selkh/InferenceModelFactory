@@ -69,7 +69,7 @@ class Monitor(object):
         # output_data = model.run(processed_input)
         # processed_output = model.postprocess(output_data)
 
-        return processed_output
+        # return processed_output
 
     def __del__(self):
         # TODO: Generate Final Report
