@@ -26,21 +26,25 @@ class Device:
 
     __supported_device_list = ['cpu', 'gpu', 'gcu']
 
+    @property
     def name(self):
         if not hasattr(self, '_name'):
             raise DeviceNotParseException()
         return self._name
 
+    @property
     def type(self):
         if not hasattr(self, '_type'):
             raise DeviceNotParseException()
         return self._type
 
+    @property
     def id(self):
         if not hasattr(self, '_id'):
             raise DeviceNotParseException()
         return self._id
 
+    @property
     def cluster_ids(self):
         if not hasattr(self, '_cluster_ids'):
             raise DeviceNotParseException()

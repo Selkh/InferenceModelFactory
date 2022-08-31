@@ -40,13 +40,15 @@ class OnnxModelFactory(ModelFactory):
 
 
 class OrtSession(BaseSession):
-    def __init__(self, model_path):
+    def __init__(self, path_or_bytes, sess_options=None, **kwargs):
         import onnxruntime as rt
-        self.model_path = model_path
-        self.sess = rt.InferenceSession(model_path)
+        self.sess = rt.InferenceSession(path_or_bytes, sess_options, kwargs)
+        # self.__version = rt.__version__
 
+    @property
     def version(self):
         return "1.9.1"
+        # return self.__version
 
     def get_session_options(self):
         return self.sess.get_session_options()
@@ -131,8 +133,8 @@ class OrtGCUSession(OrtSession):
 class OnnxModel(Model):
 
     @abstractmethod
-    def run_internal(self, session: BaseSession, ):
-        return session.run
+    def run_internal(self, session: BaseSession):
+        pass
 
     def run(self, *args, **kwargs):
         sess = self.create_session()
@@ -156,16 +158,20 @@ class OnnxModel(Model):
         except AttributeError as ex:
             raise OnnxModelPathNotSetException()
 
-        sess = SESSION_FACTORY['onnx-' + device.name()](model_path)
+        # sess_options is ignored as rarely used
+        sess = SESSION_FACTORY['onnx-' + device.type](model_path)
 
         provider_options = [{}]
-        if device.name() == 'gcu':
+        if device.name == 'gcu':
             key_list = ['output_names', 'compiled_batchsize', 'export_executable', 'load_executable']
 
             for key in key_list:
                 value = options.get(key)
                 if value:
                     provider_options[0].update({key: value})
+
+            provider_options[0].update({device: device.id})
+            provider_options[0].update({cluster: device.cluster_ids})
 
         sess.set_providers(provider_options)
         return sess
