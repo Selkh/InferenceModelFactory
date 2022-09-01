@@ -52,6 +52,9 @@ class Options:
         else:
             return None
 
+    def __getitem__(self, key):
+        return self.get(key)
+
 class OptionsStack(threading.local):
     """Use a stack to manage Options objects"""
     def __init__(self):
