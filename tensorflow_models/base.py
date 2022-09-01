@@ -52,12 +52,8 @@ class TFModel(Model):
         else:
             raise TypeError("Output of 'construct_graph' must be either 'Graph' or 'Tensor', but got {}".format(type(graph_or_tensor).__name__))
 
-        if hasattr(options, 'get_device'):
-            device_name = options.get_device()
-            Device.parse(device)
-        else:
-            Device.parse('gcu')
-        device = Device()
+        device_name = options.get_device() if hasattr(options, 'get_device') else 'gcu'
+        device = Device.parse(device_name)
         self.set_device(device)
 
         target = options.get_target() if hasattr(options, 'get_target') else ''

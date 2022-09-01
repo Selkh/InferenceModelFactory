@@ -35,9 +35,9 @@ class OnnxModelPathNotSetException(Exception):
     def __init__(self):
         print("argument: '--model_path' is necessary for onnxruntime ")
 
-# class OnnxModelArgumentException(Exception):
-#     def __init__(self, args: str):
-#         print("method 'run_internal' can have only one positional argument with type 'BaseSession', but additionally got: {}".format(str(args)[1:-1]))
+class OnnxModelArgumentException(Exception):
+    def __init__(self, args: str):
+        print("method 'run_internal' can have only one positional argument with type 'BaseSession', but additionally got: {}".format(args))
 
 class OnnxModelFactory(ModelFactory):
    name = 'onnx'
@@ -152,13 +152,16 @@ class OnnxModel(Model):
     def run(self):
         options = self.get_options()
 
+        argcount = self.run_internal.__code__.co_argcount
+        if argcount > 2:
+            raise OnnxModelArgumentException(str(self.run_internal.__code__.co_varnames[2: argcount])[1:-1])
+
         sess = self.create_session_by_options(options)
         output = self.run_internal(sess)
         return output
 
-    def create_session(self, device: str, model_path: str) -> BaseSession:
-        Device.parse(device)
-        device = Device()
+    def create_session(self, device_name: str, model_path: str) -> BaseSession:
+        device = Device.parse(device_name)
         self.set_device(device)
 
         sess = SESSION_FACTORY['onnx-' + device.type](model_path)

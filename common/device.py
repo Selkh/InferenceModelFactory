@@ -26,6 +26,12 @@ class Device:
 
     __supported_device_list = ['cpu', 'gpu', 'gcu']
 
+    def __init__(self, name, device_type, device_id, cluster_ids):
+        self._name = name
+        self._type = device_type
+        self._id = device_id
+        self._cluster_ids = cluster_ids
+
     @property
     def name(self):
         if not hasattr(self, '_name'):
@@ -60,8 +66,8 @@ class Device:
         assert type(substr) is str
         return [int(i) for i in substr.split(',')]
 
-    @classmethod
-    def parse(cls, name: str):
+    @staticmethod
+    def parse(name: str):
         """
         For general devices, a standard device string format is '<device_type>:<id>', example as 'cpu:0', 'gpu:1'. Shorten formats is also supported, such as 'cpu', 'gpu', where device id will be set 0 as default.
 
@@ -76,55 +82,50 @@ class Device:
           'gcu::0,1' means cluster 0 and 1 on device 0
         """
 
-        if type(cls._name) is str:
-            print("Re-assign device name")
+        # if type(name) is str:
+        #     print("Re-assign device name")
+        assert type(name) is str
 
-        cls._name = name
-
-        assert type(cls._name) is str
-
-        ncolon = cls.search_colon(cls._name)
+        ncolon = Device.search_colon(name)
 
         if ncolon > 2:
             raise ValueError('Specific device name: {} is not in supported format.'.format(name))
 
         if ncolon == 0: # 'cpu', 'gpu', 'gcu'
-            device_type = cls._name
-            if device_type not in cls.__supported_device_list:
-                raise ValueError('Specific device name: {} is not supported.'.format(name))
+            device_type = name
+            if device_type not in Device.__supported_device_list:
+                raise ValueError('Specific device name: {} is not supported. Supported: {}'.format(name, Device.__supported_device_list))
 
-            cls._type = device_type
-            cls._id = 0
-            cls._cluster_ids = [-1]
-            return
+            device_id = 0
+            cluster_ids = [-1]
+            return Device(name=name, device_type=device_type, device_id=device_id, cluster_ids=cluster_ids)
 
-        seperator_0 = cls._name.find(':')
-        device_type = cls._name[:seperator_0]
-        if device_type not in cls.__supported_device_list:
+        seperator_0 = name.find(':')
+        device_type = name[:seperator_0]
+        if device_type not in Device.__supported_device_list:
             raise ValueError('Specific device name: {} is not supported.'.format(name))
-        cls._type = device_type
 
         if ncolon == 2:
             # gcu standard format
             assert device_type == 'gcu', 'Only gcu support format with double colons.'
 
-            seperator_1 = cls._name[seperator_0 + 1:].find(':')
+            seperator_1 = name[seperator_0 + 1:].find(':')
 
             if seperator_1 == 0:
                 #'gcu::0,1,2'
-                cls._id = 0
+                device_id = 0
             else:
-                cls._id = int(cls._name[seperator_0 + 1:][:seperator_1])
+                device_id = int(cls._name[seperator_0 + 1:][:seperator_1])
 
-            cluster_ids = cls._name[seperator_0 + seperator_1 + 2:]
-            cls._cluster_ids = cls.parse_list(cluster_ids)
-            return
+            cluster_ids = name[seperator_0 + seperator_1 + 2:]
+            cluster_ids = Device.parse_list(cluster_ids)
+            return Device(name=name, device_type=device_type, device_id=device_id, cluster_ids=cluster_ids)
 
         if ncolon == 1:
-            cls._id = int(cls._name[seperator_0 + 1:])
-            cls._cluster_ids = [-1]
-            return 
+            device_id = int(cls._name[seperator_0 + 1:])
+            cluster_ids = [-1]
+            return Device(name=name, device_type=device_type, device_id=device_id, cluster_ids=cluster_ids)
 
     @classmethod
     def rename(cls):
-        return str(cls.type()) + ':' + str(cls.id())
+        return str(cls.type) + ':' + str(cls.id)
