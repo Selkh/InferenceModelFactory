@@ -23,28 +23,28 @@ from importlib.machinery import ModuleSpec
 from importlib.abc import Loader
 from importlib._bootstrap_external import PathFinder, FileFinder
 
-class LazyModule(ModuleType):
+class PseudoModule(ModuleType):
     def __init__(self, name):
         self.name = name
 
     def __getattribute__(self, key):
         global count
         if key in ['name', '__name__', '__loader__', '__package__', '__path__']:
-            return super(LazyModule, self).__getattribute__(key)
+            return super(PseudoModule, self).__getattribute__(key)
         else:
             sys.meta_path.pop()
             raise ModuleNotFoundError(f"No module named {self.name!r}", name=self.name)
 
 
-class ExampleLoader(Loader):
+class PseudoLoader(Loader):
     def create_module(self, spec):
-        module = LazyModule(spec.name)
+        module = PseudoModule(spec.name)
         return module
 
     def exec_module(self, module):
         pass
 
-class ExampleFinder(PathFinder):
+class PseudoFinder(PathFinder):
     def find_spec(self, fullname, path=None, target=None):
         # Be called only when module not found
         parent = fullname.rpartition('.')[0]
@@ -63,16 +63,16 @@ class ExampleFinder(PathFinder):
 
         if not parent:
             # module in sys path
-            return ModuleSpec(fullname, ExampleLoader())
+            return ModuleSpec(fullname, PseudoLoader())
         else:
             # suppose to error file import
             return super().find_spec(fullname, path, target)
 
-def example_hook(path):
-    return ExampleFinder()
+def pseudo_hook(path):
+    return PseudoFinder()
 
 
 #sys.meta_path.insert(3, ExampleFinder())
-sys.meta_path.append(ExampleFinder())
+sys.meta_path.append(PseudoFinder())
 #sys.path_hooks.insert(2, example_hook)
 #sys.path_importer_cache.clear()

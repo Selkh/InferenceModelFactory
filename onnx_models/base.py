@@ -29,6 +29,7 @@ from common.session import *
 from common.model import Model
 from common.device import Device
 from common.options import Options
+import onnxruntime as rt
 
 
 class OnnxModelPathNotSetException(Exception):
@@ -46,7 +47,6 @@ class OnnxModelFactory(ModelFactory):
 
 class OrtSession(BaseSession):
     def __init__(self, path_or_bytes, sess_options=None, **kwargs):
-        import onnxruntime as rt
         self.sess = rt.InferenceSession(path_or_bytes, sess_options, **kwargs)
         # self.__version = rt.__version__
 

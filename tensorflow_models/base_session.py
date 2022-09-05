@@ -19,10 +19,10 @@ limitations under the License.
 
 from functools import partial
 from common.session import BaseSession, register_session
+import tensorflow as tf
 
 class TFSession(BaseSession):
     def __init__(self, target='', graph=None, config=None):
-        import tensorflow as tf
         self.sess = tf.Session(target, graph, config)
 
     def reset(self, target, containers=None, config=None):

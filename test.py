@@ -48,12 +48,16 @@ limitations under the License.
 # print(map)
 
 
-from factory import create_model
+from factory import create_model_by_argument, create_model_by_name
 from monitor import Monitor
 
-engine = create_model("onnx-resnet50")
-monitor = Monitor()
-monitor.Execute(engine)
+# engine = create_model_by_argument()
+# monitor = Monitor()
+# monitor.Execute(engine)
+# 
+# engine1 = create_model_by_argument()
+# monitor.Execute(engine1)
 
-engine1 = create_model("onnx-yolo")
-monitor.Execute(engine1)
+engine = create_model_by_name('onnx-resnet50')
+engine1 = create_model_by_name('onnx-resnet50')
+#engine0 = create_model_by_name('onnx-yolo')
