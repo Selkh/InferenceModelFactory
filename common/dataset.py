@@ -17,15 +17,17 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-#suppose to import common.util first
-import common.utils as utils
-from factory import create_model_by_argument, create_model_by_name
-from monitor import Monitor
+import itertools
 
-model = create_model_by_argument()
-monitor = Monitor()
 
-model1 = create_model_by_name('onnx-resnet50')
+class Dataset:
+    
+    def apply(self, preprocess_func):
+        if not callable(preprocess_func):
+            raise TypeError("{} is not callable, expected method applied on each item".format(preprocess_func))
 
-monitor.Execute(model)
-monitor.Execute(model1)
+        self.preprocess_func = preprocess_func
+
+
+
+

@@ -18,7 +18,8 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 import argparse
-import onnx_models.resnet.resnet50
+#import onnx_models.resnet.resnet50
+import onnx_models
 from common.model_factory import *
 from common.options import get_default_options, new_options
 

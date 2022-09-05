@@ -17,7 +17,7 @@ limitations under the License.
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__all__ = ['ModelFactory']
+__all__ = ['ModelFactory', 'ModelUnimplementException', 'ModelNameConflictException', 'ModelNameUndefinedException', 'ModelNotCompleteException']
 
 class ModelUnimplementException(Exception):
     pass
