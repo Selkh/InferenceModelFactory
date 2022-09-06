@@ -14,20 +14,18 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
 import itertools
 
 
 class Dataset:
-    
+
     def apply(self, preprocess_func):
         if not callable(preprocess_func):
-            raise TypeError("{} is not callable, expected method applied on each item".format(preprocess_func))
+            raise TypeError(
+                "{} is not callable, expected method applied on each item".format(
+                    preprocess_func))
 
         self.preprocess_func = preprocess_func
-
-
-
-

@@ -14,25 +14,34 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__all__ = ['ModelFactory', 'ModelUnimplementException', 'ModelNameConflictException', 'ModelNameUndefinedException', 'ModelNotCompleteException']
+__all__ = ['ModelFactory', 'ModelUnimplementException',
+           'ModelNameConflictException', 'ModelNameUndefinedException',
+           'ModelNotCompleteException']
+
 
 class ModelUnimplementException(Exception):
     pass
 
+
 class ModelNameConflictException(Exception):
     def __init__(self, name: str):
-        print("\nname: {} has been registered, please check if same or rename\n".format(name))
+        print(
+            "\nname: {} has been registered, please check or rename\n".format(
+                name))
 
 
 class ModelNameUndefinedException(Exception):
     pass
 
+
 class ModelNotCompleteException(Exception):
     def __init__(self, name: str, method: str):
-        print("\nmodel: {} does not have method: {}, please realize it\n".format(name, method))
+        print(
+            "\nmodel: {} does not have method: {}, please realize it\n".format(
+                name, method))
 
 
 class BaseModelFactory(type):
@@ -48,7 +57,9 @@ class BaseModelFactory(type):
         if cls.__name__ == 'ModelFactory' or cls.model == 'undefined':
             return cls
 
-        # A similar implement of abc.abstractmethod, as each derived model class must realize its create method: new_model. We tend to catch error earlier before instancize.
+        # A similar implement of abc.abstractmethod, as each derived model class
+        # must realize its create method: new_model. We tend to catch error
+        # earlier than instantiate.
         for method_name in mcs.__abstractmethods:
             if method_name not in cls.__dict__.keys():
                 raise ModelNotCompleteException(cls.model, method_name)
@@ -88,8 +99,8 @@ class BaseModelFactory(type):
             return False
 
     def reset(cls):
-       cls.__registered_map.clear() 
+        cls.__registered_map.clear()
 
 
-class ModelFactory(metaclass = BaseModelFactory):
+class ModelFactory(metaclass=BaseModelFactory):
     pass

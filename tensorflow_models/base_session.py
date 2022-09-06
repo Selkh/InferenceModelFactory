@@ -14,12 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
 from functools import partial
 from common.session import BaseSession, register_session
 import tensorflow as tf
+
 
 class TFSession(BaseSession):
     def __init__(self, target='', graph=None, config=None):
@@ -49,16 +50,18 @@ class TFSession(BaseSession):
     def as_default(self):
         return self.sess.as_default()
 
-    def run(self, fetches, device_str, feed_dict=None, options=None, run_metadata=None):
+    def run(self, fetches, device_str, feed_dict=None, options=None,
+            run_metadata=None):
         self.sess.graph.device(device_str)
         output = self.sess.run(fetches, feed_dict, options, run_metadata)
         return output
 
     def partial_run(self, handle, fetches, feed_dict=None):
-        return self.sess.partial_run(handle, fetches, feed_dic)
+        return self.sess.partial_run(handle, fetches, feed_dict)
 
     def partial_run_setup(self, fetches, feeds=None):
         return self.sess.partial_run_setup(fetches, feeds)
+
 
 @register_session
 class TFCPUSession(TFSession):
@@ -71,7 +74,8 @@ class TFCPUSession(TFSession):
 
     @partial
     def run(self, fetches, feed_dict=None, options=None, run_metadata=None):
-        return partial(super().run, device_str = self.device_str)
+        return partial(super().run, device_str=self.device_str)
+
 
 @register_session
 class TFGPUSession(TFSession):
@@ -84,17 +88,18 @@ class TFGPUSession(TFSession):
 
     @partial
     def run(self, fetches, feed_dict=None, options=None, run_metadata=None):
-        return partial(super().run, device_str = self.device_str)
+        return partial(super().run, device_str=self.device_str)
+
 
 @register_session
 class TFGCUSession(TFSession):
     def __init__(self, device_id, target='', graph=None, config=None):
         super(TFCPUSession, self).__init__(target, graph, config)
-        self.device_str = '/device:XLA_DTU:' + device.id
+        self.device_str = '/device:XLA_DTU:' + device_id
 
     def name(self):
         return "tf-gcu"
 
     @partial
     def run(self, fetches, feed_dict=None, options=None, run_metadata=None):
-        return partial(super().run, device_str = self.device_str)
+        return partial(super().run, device_str=self.device_str)

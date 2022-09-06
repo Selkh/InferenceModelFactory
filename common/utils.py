@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 import sys
 import traceback
@@ -22,6 +22,7 @@ from types import ModuleType
 from importlib.machinery import ModuleSpec
 from importlib.abc import Loader
 from importlib._bootstrap_external import PathFinder, FileFinder
+
 
 class PseudoModule(ModuleType):
     def __init__(self, name):
@@ -33,7 +34,8 @@ class PseudoModule(ModuleType):
             return super(PseudoModule, self).__getattribute__(key)
         else:
             sys.meta_path.pop()
-            raise ModuleNotFoundError(f"No module named {self.name!r}", name=self.name)
+            raise ModuleNotFoundError(f"No module named {self.name!r}",
+                                      name=self.name)
 
 
 class PseudoLoader(Loader):
@@ -43,6 +45,7 @@ class PseudoLoader(Loader):
 
     def exec_module(self, module):
         pass
+
 
 class PseudoFinder(PathFinder):
     def find_spec(self, fullname, path=None, target=None):
@@ -59,7 +62,11 @@ class PseudoFinder(PathFinder):
                 fno = frame.lineno
                 fline = frame.line
         if fname and fno and fline:
-            print("\nWarning: No module named {}, ignore during register while raise error when calling.\nFirst required by\n  File \"{}\", line {}, in <module>\n    {}\n".format(fullname, fname, fno, fline))
+            print(
+                "\nWarning: No module named {}, ignore during register but will"
+                " raise error if called.\nFirst required by\n  File \"{}\", "
+                "line {}, in <module>\n    {}\n".format(
+                    fullname, fname, fno, fline))
 
         if not parent:
             # module in sys path
@@ -68,11 +75,12 @@ class PseudoFinder(PathFinder):
             # suppose to error file import
             return super().find_spec(fullname, path, target)
 
+
 def pseudo_hook(path):
     return PseudoFinder()
 
 
-#sys.meta_path.insert(3, ExampleFinder())
+# sys.meta_path.insert(3, ExampleFinder())
 sys.meta_path.append(PseudoFinder())
-#sys.path_hooks.insert(2, example_hook)
-#sys.path_importer_cache.clear()
+# sys.path_hooks.insert(2, example_hook)
+# sys.path_importer_cache.clear()

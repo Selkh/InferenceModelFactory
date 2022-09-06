@@ -14,12 +14,13 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
 from abc import ABC, abstractmethod
 
 __all__ = ['BaseSession', 'register_session', 'SESSION_FACTORY']
+
 
 class BaseSession(ABC):
 
@@ -35,11 +36,14 @@ class BaseSession(ABC):
     def run(self):
         pass
 
+
 SESSION_FACTORY = {}
+
 
 def register_session(cls):
     cls_name = cls.name(cls)
+
     def register_internal(cls):
         SESSION_FACTORY[cls_name] = cls
-        
+
     return register_internal(cls)

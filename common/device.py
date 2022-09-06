@@ -14,17 +14,20 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+
+
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
 class DeviceNotParseException(Exception):
     def __init__(self):
         print("Please call 'parse' before get when use class Device")
 
+
 class Device:
     __slots__ = ['_name', '_type', '_id', '_cluster_ids']
 
-    __supported_device_list = ['cpu', 'gpu', 'gcu']
+    _supported_device_list = ['cpu', 'gpu', 'gcu']
 
     def __init__(self, name, device_type, device_id, cluster_ids):
         self._name = name
@@ -69,62 +72,87 @@ class Device:
     @staticmethod
     def parse(name: str):
         """
-        For general devices, a standard device string format is '<device_type>:<id>', example as 'cpu:0', 'gpu:1'. Shorten formats is also supported, such as 'cpu', 'gpu', where device id will be set 0 as default.
+        For general devices, a standard device string format is
+                    '<device_type>:<id>'
+        As example:
+                    'cpu:0', 'gpu:1'.
+        Shorten formats is also supported, such as
+                    'cpu', 'gpu',
+            where
+                device id will be set 0 as default.
 
-        As gcu exposes 'cluster' in the interface, its format will be 'gcu:<id>:<cluster_ids>', example as 'gcu:0:0', 'gcu:0:0,1'
-        where
-          `id` is device id,
-          `cluster_ids` is a comma-separated list of integers, such as '0', '0,1'. It represents single grain resource to be used
-        Shorten format is also supported. If no specific assigned cluster ids, the whole resource will be used to compute and if no assigned device id, device 0 will be used.
-        For example,
+        As gcu exposes 'cluster' in the interface, its format will be
+                    'gcu:<id>:<cluster_ids>'
+        As example:
+                    'gcu:0:0', 'gcu:0:0,1'
+            where
+                `id`: device id,
+                `cluster_ids`: a comma-separated list of integers, each
+                               represents one single grain resource to be used
+                               on GCU, such as '0', '0,1',
+        Shorten format is also supported with some assumption:
+            if no specific cluster ids, assume whole resource to be used,
+            if no specific device id, assume device 0 to be used.
+        As example:
           'gcu' means the complete card 0
           'gcu:1' means the complete card 1
           'gcu::0,1' means cluster 0 and 1 on device 0
         """
 
-        # if type(name) is str:
-        #     print("Re-assign device name")
+        # Only format string is supported for 'Device'
         assert type(name) is str
 
+        # Number of colon used to match different pattern
         ncolon = Device.search_colon(name)
 
+        # If more than two colons in 'name', it must be an abnormal format
         if ncolon > 2:
-            raise ValueError('Specific device name: {} is not in supported format.'.format(name))
+            raise ValueError(
+                'Specific device name: {} is not in supported format. '
+                'Please double check your string'.format(name))
 
-        if ncolon == 0: # 'cpu', 'gpu', 'gcu'
+        # Shorten format
+        if ncolon == 0:  # 'cpu', 'gpu', 'gcu'
             device_type = name
-            if device_type not in Device.__supported_device_list:
-                raise ValueError('Specific device name: {} is not supported. Supported: {}'.format(name, Device.__supported_device_list))
+            if device_type not in Device._supported_device_list:
+                raise ValueError(
+                    'Specific device name: {} is not supported. Supported: {}'.format(
+                        name, Device._supported_device_list))
 
             device_id = 0
             cluster_ids = [-1]
-            return Device(name=name, device_type=device_type, device_id=device_id, cluster_ids=cluster_ids)
+            return Device(name=name, device_type=device_type,
+                          device_id=device_id, cluster_ids=cluster_ids)
 
         seperator_0 = name.find(':')
         device_type = name[:seperator_0]
-        if device_type not in Device.__supported_device_list:
-            raise ValueError('Specific device name: {} is not supported.'.format(name))
+        if device_type not in Device._supported_device_list:
+            raise ValueError(
+                'Specific device name: {} is not supported.'.format(name))
 
+        # Only GCU may contains two colons
         if ncolon == 2:
-            # gcu standard format
+            # GCU standard format
             assert device_type == 'gcu', 'Only gcu support format with double colons.'
 
             seperator_1 = name[seperator_0 + 1:].find(':')
 
             if seperator_1 == 0:
-                #'gcu::0,1,2'
+                # 'gcu::0,1,2'
                 device_id = 0
             else:
-                device_id = int(cls._name[seperator_0 + 1:][:seperator_1])
+                device_id = int(name[seperator_0 + 1:][:seperator_1])
 
             cluster_ids = name[seperator_0 + seperator_1 + 2:]
             cluster_ids = Device.parse_list(cluster_ids)
-            return Device(name=name, device_type=device_type, device_id=device_id, cluster_ids=cluster_ids)
+            return Device(name=name, device_type=device_type,
+                          device_id=device_id, cluster_ids=cluster_ids)
 
         if ncolon == 1:
-            device_id = int(cls._name[seperator_0 + 1:])
+            device_id = int(name[seperator_0 + 1:])
             cluster_ids = [-1]
-            return Device(name=name, device_type=device_type, device_id=device_id, cluster_ids=cluster_ids)
+            return Device(name=name, device_type=device_type,
+                          device_id=device_id, cluster_ids=cluster_ids)
 
     @classmethod
     def rename(cls):

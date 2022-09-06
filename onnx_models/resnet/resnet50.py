@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
 from onnx_models.base import OnnxModelFactory, OnnxModel
@@ -45,7 +45,5 @@ class RN50(OnnxModel):
     def run_internal(self, sess):
         preprocessed_input = self.preprocess()
 
-
     def postprocess(self, *args, **kwargs):
         print("rn50 engine postprocessing")
-

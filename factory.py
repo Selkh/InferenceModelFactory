@@ -14,11 +14,11 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
 import argparse
-#import onnx_models.resnet.resnet50
+# import onnx_models.resnet.resnet50
 import onnx_models
 from common.model_factory import *
 from common.options import get_default_options, new_options
@@ -36,16 +36,16 @@ def create_model_by_argument():
     args = options.parse_args()
     name = concat_string(args.frame, args.model)
 
-    all = ModelFactory.display_all()
-    if name in all:
+    all_models = ModelFactory.display_all()
+    if name in all_models:
         return ModelFactory.get(name).new_model()
     else:
         raise ModelUnimplementException()
 
 
 def create_model_by_name(name: str):
-    all = ModelFactory.display_all()
-    if name in all:
+    all_models = ModelFactory.display_all()
+    if name in all_models:
         return ModelFactory.get(name).new_model()
     else:
         raise ModelUnimplementException()

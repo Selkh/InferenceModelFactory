@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
 import time
@@ -24,19 +24,21 @@ from common.options import Options
 
 def create_set_function(options, key, *args, **kwargs):
     def set_attr(value):
-        setattr(options, '__' + key, value)
+        setattr(options, '_' + key, value)
 
     return set_attr
 
+
 def create_get_function(options, key, *args, **kwargs):
     def get_attr():
-        return getattr(options, '__' + key)
+        return getattr(options, '_' + key)
 
     return get_attr
 
 
 class Monitor(object):
     """builder mode"""
+
     def __init__(self, *args, **kwargs):
         self.args = args
         self.kwargs = kwargs
@@ -44,7 +46,6 @@ class Monitor(object):
         self.count = 0
 
     def Execute(self, model: Model):
-
         self.count += 1
         print("Execute model with class name: {}".format(type(model).__name__))
 
@@ -53,7 +54,6 @@ class Monitor(object):
         print(args.__dict__)
 
         for key, value in vars(args).items():
-
             setattr(options, '__' + key, value)
 
             set_func_name = 'set_' + key
@@ -74,4 +74,5 @@ class Monitor(object):
     def __del__(self):
         # TODO: Generate Final Report
         end = time.time()
-        print("Totally execute {} models, spend {}".format(self.count, end - self.start))
+        print("Totally execute {} models, spend {}".format(self.count,
+                                                           end - self.start))

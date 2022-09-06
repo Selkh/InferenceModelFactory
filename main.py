@@ -14,10 +14,10 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-#suppose to import common.util first
+# suppose to import common.util first
 import common.utils as utils
 from factory import create_model_by_argument, create_model_by_name
 from monitor import Monitor

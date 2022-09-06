@@ -14,7 +14,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
 from abc import abstractmethod
@@ -24,6 +24,7 @@ from common.model import Model
 from common.device import Device
 from common.options import Options
 import tensorflow_models.base_session
+
 
 class TFModelFactory(ModelFactory):
     name = 'tf'
@@ -43,26 +44,32 @@ class TFModel(Model):
 
     def create_session(self):
         options = self.get_options()
-        
+
         graph_or_tensor = self.construct_graph()
         if type(graph_or_tensor).__name__ == 'Graph':
             graph = graph_or_tensor
         elif type(graph_or_tensor).__name__ == 'Tensor':
             graph = graph_or_tensor.graph
         else:
-            raise TypeError("Output of 'construct_graph' must be either 'Graph' or 'Tensor', but got {}".format(type(graph_or_tensor).__name__))
+            raise TypeError(
+                "Output of 'construct_graph' must be either 'Graph' or 'Tensor', but got {}".format(
+                    type(graph_or_tensor).__name__))
 
-        device_name = options.get_device() if hasattr(options, 'get_device') else 'gcu'
+        device_name = options.get_device() if hasattr(options,
+                                                      'get_device') else 'gcu'
         device = Device.parse(device_name)
         self.set_device(device)
 
         target = options.get_target() if hasattr(options, 'get_target') else ''
 
         config = tf.ConfigProto()
-        config.allow_soft_placement = options.get_allow_soft_placement() if hasattr(options, 'get_allow_soft_placement') else True
-        config.log_soft_placement = options.get_log_soft_placement() if hasattr(options, 'get_log_soft_placement') else False
+        config.allow_soft_placement = options.get_allow_soft_placement() if hasattr(
+            options, 'get_allow_soft_placement') else True
+        config.log_soft_placement = options.get_log_soft_placement() if hasattr(
+            options, 'get_log_soft_placement') else False
 
-        sess = SESSION_FACTORY['tf-' + device.type](device.id, target=target, graph=graph, config=config)
+        sess = SESSION_FACTORY['tf-' + device.type](device.id, target=target,
+                                                    graph=graph, config=config)
         return sess
 
     def run(self, *args, **kwargs):

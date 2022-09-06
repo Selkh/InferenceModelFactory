@@ -14,24 +14,30 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
 from .device import Device
 from .session import BaseSession
 from .options import Options, new_options
 
+
 class ModelNotSetOptionException(Exception):
     def __init__(self):
-        print("please set option to model before run")
+        print("Error: Please set option to model before run")
+
 
 class ModelNotSetDeviceException(Exception):
     def __init__(self):
-        print("please set device to model before run")
+        print("Error: Please set device to model before run")
+
 
 class ModelNotInitException(Exception):
     def __init__(self):
-        print("If __init__ of concrete model is overrided, __init__ of super class must be called in concrete model")
+        print(
+            "Error: If '__init__' is overrided, that of super class must"
+            " be derived in concrete model")
+
 
 class Model(ABC):
     __slot__ = ['device', 'options']
@@ -56,10 +62,6 @@ class Model(ABC):
         if not hasattr(self, 'device'):
             raise ModelNotSetDeviceException()
         return self.device
-
-    # @abstractmethod
-    # def create_session(self) -> BaseSession:
-    #     pass
 
     @abstractmethod
     def preprocess(self):
