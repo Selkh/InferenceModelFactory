@@ -225,10 +225,15 @@ class OnnxModel(Model):
                return items if result.pop() else outputs
 
         pipe = pipe.map_batches(BatchInfer(self.run_internal), compute="actors", batch_size=batch_size, drop_last=True)
-        print(pipe.map_batches)
+        pipe = pipe.map(self.postprocess)
 
-        for batch in pipe.iter_batches(batch_size=batch_size, drop_last=True):
-            print(batch[0].data.shape)
+        correct = 0
+        for row in pipe.iter_rows():
+            # print(batch[0].data.shape)
+            correct += row
+
+        print(correct)
+
 
 
     def create_session(self, device_name: str, model_path: str) -> BaseSession:

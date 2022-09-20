@@ -85,3 +85,10 @@ class RN50(OnnxModel):
 
     def postprocess(self, items):
         print("rn50 engine postprocessing")
+        import numpy as np
+
+        if np.all(items.data == items.final_result):
+            return 1
+        else:
+            return 0
+        # return items
