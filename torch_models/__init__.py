@@ -1,3 +1,3 @@
 from common.utils import traversal
 
-traversal("onnx_models")
+traversal("torch_models")

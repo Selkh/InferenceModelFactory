@@ -16,6 +16,7 @@ limitations under the License.
 """
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
+import os
 import sys
 import traceback
 from types import ModuleType
@@ -97,3 +98,20 @@ def pseudo_hook(path):
 sys.meta_path.append(PseudoFinder())
 # sys.path_hooks.insert(2, example_hook)
 # sys.path_importer_cache.clear()
+
+
+black_list = ["__pycache__", "__init__.py"]
+
+def traversal(path):
+    for p in os.listdir(path):
+        if p in black_list:
+            continue
+        leaf_path = os.path.join(path, p)
+        if os.path.isdir(leaf_path):
+            traversal(leaf_path)
+        else:
+            if leaf_path.endswith(".py"):
+                leaf_path = leaf_path[:-3]
+                module = leaf_path.replace("/", ".")
+                # print("import module: ", module)
+                __import__(module)
