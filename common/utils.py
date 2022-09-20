@@ -56,12 +56,25 @@ class PseudoFinder(PathFinder):
         fname = None
         fno = 0
         fline = ""
-        for frame in traceback.extract_stack():
-            if frame.name == '<module>':
-                fname = frame.filename
-                fno = frame.lineno
-                fline = frame.line
+        for frame in reversed(traceback.extract_stack()):
+            if frame.name == 'find_spec':
+                # function itself
+                continue
+
+            if frame.filename.startswith('<'):
+                # system frozen module
+                continue
+
+            # if frame.name == '<module>': # '<module>' is not the only standard for call stack
+            # record the first real import
+            fname = frame.filename
+            fno = frame.lineno
+            fline = frame.line
+            break
+
         if fname and fno and fline:
+            if fname.startswith('/usr'): # need by system lib
+                return None
             print(
                 "\nWarning: No module named {}, ignore during register but will"
                 " raise error if called.\nFirst required by\n  File \"{}\", "

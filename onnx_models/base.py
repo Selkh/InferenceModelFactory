@@ -26,6 +26,7 @@ from common.session import *
 from common.model import Model
 from common.device import Device
 from common.options import Options
+from common.dataset import Item
 import onnxruntime as rt
 
 
@@ -35,10 +36,10 @@ class OnnxModelPathNotSetException(Exception):
 
 
 class OnnxModelArgumentException(Exception):
-    def __init__(self, args: str):
+    def __init__(self, name: str, args: str):
         print(
-            "method 'run_internal' can have only one positional argument with"
-            " type 'BaseSession', but additionally got: {}".format(
+            "method '{}' can have only one positional argument with"
+            " type 'BaseSession', but additionally got: {}".format(name,
                 args))
 
 
@@ -116,6 +117,9 @@ class OrtSession(BaseSession):
     def run_with_iobinding(self, iobinding, run_options=None):
         return self.sess.run_with_iobinding(iobinding, run_options=None)
 
+    def generate_provider_options(self, options, device):
+        return [{}]
+
 
 @register_session
 class OrtCPUSession(OrtSession):
@@ -149,24 +153,83 @@ class OrtGCUSession(OrtSession):
         providers = ['TopsInferenceExecutionProvider']
         super().set_providers(providers, provider_options)
 
+    def generate_provider_options(self, options, device):
+        provider_options = [{}]
+        key_list = ['output_names', 'compiled_batchsize',
+                    'export_executable', 'load_executable']
+
+        for key in key_list:
+            value = options.get(key)
+        if value:
+            provider_options[0].update({key: value})
+
+        provider_options[0].update({'device': device.id})
+        provider_options[0].update({'cluster': device.cluster_ids})
+        return provider_options
+
 
 class OnnxModel(Model):
 
     @abstractmethod
-    def run_internal(self, session: BaseSession):
+    def run_internal(self, session: BaseSession, datas):
         return []
 
     def run(self):
+        self.sanity_check()
         options = self.get_options()
 
-        argcount = self.run_internal.__code__.co_argcount
-        if argcount > 2:
-            raise OnnxModelArgumentException(
-                str(self.run_internal.__code__.co_varnames[2: argcount])[1:-1])
+        batch_size = 3
+        if hasattr(options, '_batch_size'):
+            batch_size = options.get_batch_size()
+        elif hasattr(options, '_batchsize'):
+            batch_size = options.get_batchsize()
+        elif hasattr(options, '_bs'):
+            batch_size = options.get_bs()
+
+        self.dataset = self.create_dataset()
+
+        pipe = self.dataset.window(blocks_per_window=1)
+        pipe = pipe.map(self.load_data)
+        pipe = pipe.map(self.preprocess)
 
         sess = self.create_session_by_options(options)
-        output = self.run_internal(sess)
-        return output
+
+        class BatchInfer:
+            def __init__(self, fn):
+                self.fn = fn
+
+            def __call__(self, items):
+               if isinstance(items[0], Item):
+                   # Derived class from common.dataset.Item
+                   batch = Model.make_batch([item.data for item in items])
+               else:
+                   # Not identified data
+                   batch = Model.make_batch(items)
+
+               outputs= self.fn(sess, batch)
+
+               def assignment(item, value):
+                   if hasattr(item, 'final_result'):
+                       raise AttributeError("attribute 'final_result' has already be used, please modify your derived Item class")
+                   try:
+                       setattr(item, "final_result", value)
+                   except AttributeError as ex:
+                       print("item itself is data with builtin type")
+                       return False
+                   return True
+
+               result = set([assignment(*z) for z in zip(items, outputs)])
+               if len(result) > 1:
+                   raise RuntimeError("Partial error during run_internal")
+
+               return items if result.pop() else outputs
+
+        pipe = pipe.map_batches(BatchInfer(self.run_internal), compute="actors", batch_size=batch_size, drop_last=True)
+        print(pipe.map_batches)
+
+        for batch in pipe.iter_batches(batch_size=batch_size, drop_last=True):
+            print(batch[0].data.shape)
+
 
     def create_session(self, device_name: str, model_path: str) -> BaseSession:
         device = Device.parse(device_name)
@@ -174,18 +237,8 @@ class OnnxModel(Model):
 
         sess = SESSION_FACTORY['onnx-' + device.type](model_path)
 
-        provider_options = [{}]
-        if device.name == 'gcu':
-            key_list = ['output_names', 'compiled_batchsize',
-                        'export_executable', 'load_executable']
-
-            for key in key_list:
-                value = self.options.get(key)
-                if value:
-                    provider_options[0].update({key: value})
-
-            provider_options[0].update({'device': device.id})
-            provider_options[0].update({'cluster': device.cluster_ids})
+        options = self.get_options()
+        provider_options = sess.generate_provider_options(options, device)
 
         sess.set_providers(provider_options)
         return sess
@@ -203,9 +256,9 @@ class OnnxModel(Model):
 
         return self.create_session(device_name, model_path)
 
-    def create_session_func_by_device(self, device: str):
+    def create_session_func_by_device(self, device_name: str):
         # Used to create multi-session on the same device with differente model paths
-        return partial(self.create_session, device=device)
+        return partial(self.create_session, device_name=device_name)
 
     def create_session_func_by_model(self, model_path: str):
         # Used to create multi-session on different devices with the same path

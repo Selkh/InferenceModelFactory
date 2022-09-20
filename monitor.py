@@ -54,7 +54,7 @@ class Monitor(object):
         print(args.__dict__)
 
         for key, value in vars(args).items():
-            setattr(options, '__' + key, value)
+            setattr(options, '_' + key, value)
 
             set_func_name = 'set_' + key
             new_set_func = create_set_function(options, key)

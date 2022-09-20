@@ -14,18 +14,189 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-# !/usr/bin/python
+#!/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import itertools
+from types import MethodType
+from typing import Union, Callable, Iterator, List
+import ray
+from ray.data.block import Block, BlockMetadata, T
+from ray.data.datasource import Datasource, ReadTask
+from ray.data.context import DatasetContext
+
+if not ray.is_initialized():
+    ray.init(num_cpus=8)
+
+def wrap_map(f):
+    def wrapper(self, *args, **kwargs):
+        r = f(*args, **kwargs)
+        r.map = self.map
+        r.map_batches = self.map_batches
+        r.window = self.window
+        r.repeat = self.repeat
+        return r
+    return wrapper
+
+def wrap_map_batches(f):
+    def wrapper(self, *args, **kwargs):
+
+        if 'batch_size' in kwargs.keys() and 'drop_last' in kwargs.keys():
+            drop_last = kwargs.pop('drop_last')
+            
+            if drop_last:
+                batch_size = kwargs['batch_size']
+                total_rows = self.count()
+
+                if total_rows % batch_size != 0:
+                    d, _ = self.split_at_indices([total_rows - total_rows % batch_size])
+                    r = d.map_batches(*args, **kwargs)
+                    r.map = self.map
+                    r.window = self.window
+                    r.repeat = self.repeat
+                    return r
+
+        r = f(*args, **kwargs)
+        r.map = self.map
+        r.map_batches = self.map_batches
+        r.window = self.window
+        r.repeat = self.repeat
+        return r
+
+    return wrapper
+
+def wrap_pipe_map(f, total_rows):
+    def wrapper(self, *args, **kwargs):
+        pipe = f(*args, **kwargs)
+        pipe.map = MethodType(wrap_pipe_map(pipe.map, total_rows), pipe)
+        pipe.map_batches = MethodType(wrap_pipe_map_batches(pipe.map_batches, total_rows), pipe)
+        return pipe
+    return wrapper
+
+def wrap_pipe_map_batches(f, total_rows):
+    def wrapper(self, *args, **kwargs):
+
+        if 'batch_size' not in kwargs.keys():
+            return f(*args, **kwargs)
+
+        drop_last = kwargs.pop('drop_last') if 'drop_last' in kwargs.keys() else False
+
+        batch_size = kwargs['batch_size']
+
+        context = DatasetContext.get_current()
+        context.optimize_fuse_stages = False
+
+        # reorg window-block-row
+        if total_rows % batch_size != 0 and drop_last:
+            # dataset_pipe = self.foreach_window(lambda ds: ds.repartition(num_blocks=ds.count()))
+            # dataset_pipe = dataset_pipe.rewindow(blocks_per_window=total_rows)
+            dataset_pipe = self.rewindow(blocks_per_window=total_rows)
+            dataset_pipe = dataset_pipe.foreach_window(lambda ds: ds.split_at_indices([total_rows - total_rows % batch_size])[0])
+            dataset_pipe = dataset_pipe.rewindow(blocks_per_window=batch_size)
+        else:
+            # dataset_pipe = self.foreach_window(lambda ds: ds.repartition(num_blocks=ds.count()))
+            # dataset_pipe = dataset_pipe.rewindow(blocks_per_window=batch_size)
+            dataset_pipe = self.rewindow(blocks_per_window=batch_size)
+
+        dataset_pipe = dataset_pipe.foreach_window(lambda ds: ds.repartition(num_blocks=1))
+
+        pipe = dataset_pipe.map_batches(*args, **kwargs)
+        # r = f(*args, **kwargs)
+        pipe.map = MethodType(wrap_pipe_map(pipe.map, total_rows), pipe)
+        pipe.map_batches = MethodType(wrap_pipe_map_batches(pipe.map_batches, total_rows), pipe)
+
+        return pipe
+    return wrapper
 
 
-class Dataset:
+def wrap_transform(f):
+    def wrapper(self, *args, **kwargs):
+        pipe = f(*args, **kwargs)
+        total_rows = self.count()
+        pipe.map = MethodType(wrap_pipe_map(pipe.map, total_rows), pipe)
+        pipe.map_batches = MethodType(wrap_pipe_map_batches(pipe.map_batches, total_rows), pipe)
+        pipe.repeat = MethodType(wrap_transform, pipe)
+        return pipe
+    return wrapper
 
-    def apply(self, preprocess_func):
-        if not callable(preprocess_func):
-            raise TypeError(
-                "{} is not callable, expected method applied on each item".format(
-                    preprocess_func))
+def func_wrap(f):
+    def wrapper(*args, **kwargs):
+        ds = f(*args, **kwargs)
+        ds = ds.repartition(ds.count())
+        ds.map = MethodType(wrap_map(ds.map), ds)
+        ds.map_batches = MethodType(wrap_map_batches(ds.map_batches), ds)
 
-        self.preprocess_func = preprocess_func
+        # ds.window = MethodType(wrap_transform(ds.window), ds)
+        # ds.repeat = MethodType(wrap_transform(ds.repeat), ds)
+
+        for name in ds.__dir__():
+            if not name.startswith('_'):
+                method = getattr(ds, name)
+
+                if method.__name__ == 'wrapper':
+                    continue
+
+                if hasattr(method, '__annotations__'):
+                    return_type = method.__annotations__['return']
+                    if return_type == 'DatasetPipeline[T]':
+                        setattr(ds, name, MethodType(wrap_transform(method), ds))
+
+        return ds
+
+    return wrapper
+
+class Item:
+    def __init__(self, data):
+        self.data = data
+
+
+class DatasetDatasource(Datasource[T]):
+    def prepare_read(self, parallelism: int, dataset_factory: Callable[[], "dataset"]) -> List[ReadTask]:
+        def read_fn() -> Iterator[Block]:
+            block = list(dataset_factory())
+            yield block
+
+        metadata = BlockMetadata(
+            num_rows=None,
+            size_bytes=None,
+            schema=None,
+            input_files=None,
+            exec_stats=None,
+        )
+        return [ReadTask(read_fn, metadata)]
+
+@func_wrap
+def read_dataset(dataset):
+    def dataset_factory():
+        if isinstance(dataset, Iterator):
+            return [d for d in dataset]
+        elif hasattr(dataset, '__getitem__') and hasattr(dataset, '__len__'):
+            return [dataset[i] for i in range(len(dataset))]
+        else:
+            raise ValueError("Dataset is neither iterable nor subscriptable")
+    ds = ray.data.read_datasource(
+        DatasetDatasource(),
+        parallelism=1,
+        dataset_factory=dataset_factory)
+
+    return ds
+
+@func_wrap
+def read_json(paths: Union[str, List[str]]):
+    return ray.data.read_json(paths)
+
+@func_wrap
+def read_csv(paths: Union[str, List[str]]):
+    return ray.data.read_csv(paths)
+
+@func_wrap
+def read_csv(paths: Union[str, List[str]]):
+    return ray.data.read_csv(paths)
+
+@func_wrap
+def read_text(paths: Union[str, List[str]]):
+    return ray.data.read_text(paths)
+
+@func_wrap
+def read_numpy(paths: Union[str, List[str]]):
+    return ray.data.read_numpy(paths)
+

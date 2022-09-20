@@ -18,6 +18,12 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 from onnx_models.base import OnnxModelFactory, OnnxModel
+from common.dataset import read_text, Item
+from PIL import Image
+from common.data_process.img_preprocess import img_resize, img_center_crop
+import numpy as np
+
+import time
 
 
 class RN50Factory(OnnxModelFactory):
@@ -26,24 +32,56 @@ class RN50Factory(OnnxModelFactory):
     def new_model():
         return RN50()
 
+class RN50Item(Item):
+    def __init__(self, name, data, label):
+        super(RN50Item, self).__init__(data)
+        self.name = name
+        self.label = label
 
 class RN50(OnnxModel):
     def __init__(self):
         super(RN50, self).__init__()
         self.options = self.get_options()
         self.options.add_argument('--model_path')
+        self.options.add_argument('--data_path')
+        self.options.add_argument('--input_width')
+        self.options.add_argument('--input_height')
+        self.options.add_argument('--resize_size')
 
-    def get_model(self):
-        return self.options.get_model_path()
+    def create_dataset(self):
+        data_path = self.options.get_data_path()
+        return read_text(data_path)
 
-    def preprocess(self, *args, **kwargs):
-        # model_path = self.options.get_model_path()
-        model_path = self.get_model()
-        print("model path: ", model_path)
-        print("rn50 engine preprocessing")
+    def load_data(self, path):
+        img_file, label = path.split(" ")
+        data = Image.open(img_file).convert("RGB")
+        name = img_file.split("\/")[-1]
+        label = int(label)
+        return RN50Item(name, data, label)
 
-    def run_internal(self, sess):
-        preprocessed_input = self.preprocess()
+    def preprocess(self, item):
+        width = int(self.options.get_input_width())
+        height = int(self.options.get_input_height())
+        resize_size = int(self.options.get_resize_size())
 
-    def postprocess(self, *args, **kwargs):
+        input_size = (width, height)
+        max_size = max(width, height)
+
+        image = img_resize(item.data, resize_size)
+        image = img_center_crop(image, input_size)
+
+        image_data = np.array(image, dtype='float32').transpose(2, 0, 1)
+        mean_vec = np.array([0.485, 0.456, 0.406])
+        stddev_vec = np.array([0.229, 0.224, 0.225])
+        norm_image_data = np.zeros(image_data.shape).astype('float32')
+        for i in range(image_data.shape[0]):
+            norm_image_data[i, :, :] = (image_data[i, :, :] / 255 - mean_vec[i]) / stddev_vec[i]
+        norm_image_data = norm_image_data.reshape(3, height, width).astype('float32')
+        item.data = norm_image_data
+        return item
+
+    def run_internal(self, sess, datas):
+        return datas
+
+    def postprocess(self, items):
         print("rn50 engine postprocessing")
