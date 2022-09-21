@@ -22,7 +22,7 @@ from common.model import Model
 from common.options import Options
 
 
-def create_set_function(options, key, *args, **kwargs):
+def create_set_function(options: Options, key, *args, **kwargs):
     def set_attr(value):
         setattr(options, '_' + key, value)
 

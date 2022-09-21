@@ -14,11 +14,14 @@ See the License for the specific language governing permissions and
 limitations under the License.
 ==============================================================================*/
 """
-#!/usr/bin/python
+
+
+# !/usr/bin/python
 # -*- coding: utf-8 -*-
 
+
 from types import MethodType
-from typing import Union, Callable, Iterator, List
+from typing import Union, Iterator, List
 import ray
 from ray.data.block import Block, BlockMetadata, T
 from ray.data.datasource import Datasource, ReadTask
@@ -87,6 +90,11 @@ def wrap_pipe_map_batches(f, total_rows):
         if "batch_size" not in kwargs.keys():
             return f(*args, **kwargs)
 
+        # When calling ‘map_batches’ of DatasetPipeline, data is expected to
+        # be organized in the form of "N-windows/1-block/1-row". When a block
+        # contains multiple rows, it is considered to have been re-planned
+        # which will not be handled again. Therefore, argument 'batch_size'
+        # of multiple 'map_batches' must keep same in one single pipeline
         try:
             rows_per_block = self._base_iterable._splits[0].get_metadata()[
                 0].num_rows
@@ -104,20 +112,15 @@ def wrap_pipe_map_batches(f, total_rows):
 
         # reorg window-block-row
         if total_rows % batch_size != 0 and drop_last:
-            # dataset_pipe = self.foreach_window(lambda ds: ds.repartition(num_blocks=ds.count()))
-            # dataset_pipe = dataset_pipe.rewindow(blocks_per_window=total_rows)
             dataset_pipe = self.rewindow(blocks_per_window=total_rows)
             context.optimize_fuse_stages = False
             dataset_pipe = dataset_pipe.foreach_window(
-                lambda ds: ds.split_at_indices([total_rows - total_rows % batch_size])[
-                    0
-                ]
+                lambda ds: ds.split_at_indices(
+                    [total_rows - total_rows % batch_size])[0]
             )
             dataset_pipe = dataset_pipe.rewindow(blocks_per_window=batch_size)
             context.optimize_fuse_stages = True
         else:
-            # dataset_pipe = self.foreach_window(lambda ds: ds.repartition(num_blocks=ds.count()))
-            # dataset_pipe = dataset_pipe.rewindow(blocks_per_window=batch_size)
             dataset_pipe = self.rewindow(blocks_per_window=batch_size)
 
         dataset_pipe = dataset_pipe.foreach_window(
@@ -184,9 +187,7 @@ class Item:
 
 
 class DatasetDatasource(Datasource[T]):
-    def prepare_read(
-        self, parallelism: int, dataset_factory: Callable[[], "dataset"]
-    ) -> List[ReadTask]:
+    def prepare_read(self, parallelism, dataset_factory) -> List[ReadTask]:
         def read_fn() -> Iterator[Block]:
             block = list(dataset_factory())
             yield block

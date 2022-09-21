@@ -42,13 +42,15 @@ def img_resize(img, size, interpolation=Image.BILINEAR):
     else:
         return img.resize(size, interpolation)
 
-def img_normalize(input_data, mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]):
+
+def img_normalize(input_data, mean=[0.485, 0.456, 0.406],
+                  std=[0.229, 0.224, 0.225]):
     img_data = input_data.astype('float32')
     mean_vec = np.array(mean)
     stddev_vec = np.array(std)
     norm_img_data = np.zeros(img_data.shape).astype('float32')
     for i in range(img_data.shape[2]):
-        norm_img_data[:, :, i] = (img_data[:, :, i] / 255 - mean_vec[i]) / stddev_vec[i]
+        norm_img_data[:, :, i] = (
+            img_data[:, :, i] / 255 - mean_vec[i]) / stddev_vec[i]
     norm_img_data = np.transpose(norm_img_data, (2, 0, 1))
     return norm_img_data
-

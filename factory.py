@@ -17,8 +17,8 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-# suppose to import common.util first
-import common.utils as utils
+
+import common.utils as _  # suppose to import common.util before models
 import onnx_models
 from common.model_factory import ModelFactory, ModelUnimplementException
 from common.options import new_options
