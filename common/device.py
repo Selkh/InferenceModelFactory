@@ -19,15 +19,16 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
+
 class DeviceNotParseException(Exception):
     def __init__(self):
         print("Please call 'parse' before get when use class Device")
 
 
 class Device:
-    __slots__ = ['_name', '_type', '_id', '_cluster_ids']
+    __slots__ = ["_name", "_type", "_id", "_cluster_ids"]
 
-    _supported_device_list = ['cpu', 'gpu', 'gcu']
+    _supported_device_list = ["cpu", "gpu", "gcu"]
 
     def __init__(self, name, device_type, device_id, cluster_ids):
         self._name = name
@@ -37,37 +38,37 @@ class Device:
 
     @property
     def name(self):
-        if not hasattr(self, '_name'):
+        if not hasattr(self, "_name"):
             raise DeviceNotParseException()
         return self._name
 
     @property
     def type(self):
-        if not hasattr(self, '_type'):
+        if not hasattr(self, "_type"):
             raise DeviceNotParseException()
         return self._type
 
     @property
     def id(self):
-        if not hasattr(self, '_id'):
+        if not hasattr(self, "_id"):
             raise DeviceNotParseException()
         return self._id
 
     @property
     def cluster_ids(self):
-        if not hasattr(self, '_cluster_ids'):
+        if not hasattr(self, "_cluster_ids"):
             raise DeviceNotParseException()
         return self._cluster_ids
 
     @staticmethod
     def search_colon(substr: str):
         assert type(substr) is str
-        return substr.count(':')
+        return substr.count(":")
 
     @staticmethod
     def parse_list(substr: str):
         assert type(substr) is str
-        return [int(i) for i in substr.split(',')]
+        return [int(i) for i in substr.split(",")]
 
     @staticmethod
     def parse(name: str):
@@ -108,52 +109,66 @@ class Device:
         # If more than two colons in 'name', it must be an abnormal format
         if ncolon > 2:
             raise ValueError(
-                'Specific device name: {} is not in supported format. '
-                'Please double check your string'.format(name))
+                "Specific device name: {} is not in supported format. "
+                "Please double check your string".format(name)
+            )
 
         # Shorten format
         if ncolon == 0:  # 'cpu', 'gpu', 'gcu'
             device_type = name
             if device_type not in Device._supported_device_list:
                 raise ValueError(
-                    'Specific device name: {} is not supported. Supported: {}'.format(
-                        name, Device._supported_device_list))
+                    "Specific device name: {} is not supported. Supported: {}".format(
+                        name, Device._supported_device_list
+                    )
+                )
 
             device_id = 0
             cluster_ids = [-1]
-            return Device(name=name, device_type=device_type,
-                          device_id=device_id, cluster_ids=cluster_ids)
+            return Device(
+                name=name,
+                device_type=device_type,
+                device_id=device_id,
+                cluster_ids=cluster_ids,
+            )
 
-        seperator_0 = name.find(':')
+        seperator_0 = name.find(":")
         device_type = name[:seperator_0]
         if device_type not in Device._supported_device_list:
-            raise ValueError(
-                'Specific device name: {} is not supported.'.format(name))
+            raise ValueError("Specific device name: {} is not supported.".format(name))
 
         # Only GCU may contains two colons
         if ncolon == 2:
             # GCU standard format
-            assert device_type == 'gcu', 'Only gcu support format with double colons.'
+            assert device_type == "gcu", "Only gcu support format with double colons."
 
-            seperator_1 = name[seperator_0 + 1:].find(':')
+            seperator_1 = name[seperator_0 + 1 :].find(":")
 
             if seperator_1 == 0:
                 # 'gcu::0,1,2'
                 device_id = 0
             else:
-                device_id = int(name[seperator_0 + 1:][:seperator_1])
+                device_id = int(name[seperator_0 + 1 :][:seperator_1])
 
-            cluster_ids = name[seperator_0 + seperator_1 + 2:]
+            cluster_ids = name[seperator_0 + seperator_1 + 2 :]
             cluster_ids = Device.parse_list(cluster_ids)
-            return Device(name=name, device_type=device_type,
-                          device_id=device_id, cluster_ids=cluster_ids)
+            return Device(
+                name=name,
+                device_type=device_type,
+                device_id=device_id,
+                cluster_ids=cluster_ids,
+            )
 
         if ncolon == 1:
-            device_id = int(name[seperator_0 + 1:])
+            device_id = int(name[seperator_0 + 1 :])
             cluster_ids = [-1]
-            return Device(name=name, device_type=device_type,
-                          device_id=device_id, cluster_ids=cluster_ids)
+            return Device(
+                name=name,
+                device_type=device_type,
+                device_id=device_id,
+                cluster_ids=cluster_ids,
+            )
 
     @classmethod
     def rename(cls):
-        return str(cls.type) + ':' + str(cls.id)
+        return str(cls.type) + ":" + str(cls.id)

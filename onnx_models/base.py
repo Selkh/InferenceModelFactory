@@ -21,11 +21,10 @@ limitations under the License.
 import time
 from abc import abstractmethod
 from functools import partial
-from common.model_factory import *
-from common.session import *
+from common.model_factory import ModelFactory
+from common.session import BaseSession, SESSION_FACTORY, register_session
 from common.model import Model
 from common.device import Device
-from common.options import Options
 from common.dataset import Item
 import onnxruntime as rt
 
@@ -33,14 +32,6 @@ import onnxruntime as rt
 class OnnxModelPathNotSetException(Exception):
     def __init__(self):
         print("argument: '--model_path' is necessary for onnxruntime ")
-
-
-class OnnxModelArgumentException(Exception):
-    def __init__(self, name: str, args: str):
-        print(
-            "method '{}' can have only one positional argument with"
-            " type 'BaseSession', but additionally got: {}".format(name,
-                args))
 
 
 class OnnxModelFactory(ModelFactory):
@@ -199,32 +190,38 @@ class OnnxModel(Model):
                 self.fn = fn
 
             def __call__(self, items):
-               if isinstance(items[0], Item):
-                   # Derived class from common.dataset.Item
-                   batch = Model.make_batch([item.data for item in items])
-               else:
-                   # Not identified data
-                   batch = Model.make_batch(items)
+                if isinstance(items[0], Item):
+                    # Derived class from common.dataset.Item
+                    batch = Model.make_batch([item.data for item in items])
+                else:
+                    # Not identified data
+                    batch = Model.make_batch(items)
 
-               outputs= self.fn(sess, batch)
+                outputs = self.fn(sess, batch)
 
-               def assignment(item, value):
-                   if hasattr(item, 'final_result'):
-                       raise AttributeError("attribute 'final_result' has already be used, please modify your derived Item class")
-                   try:
-                       setattr(item, "final_result", value)
-                   except AttributeError as ex:
-                       print("item itself is data with builtin type")
-                       return False
-                   return True
+                def assignment(item, value):
+                    if hasattr(item, 'final_result'):
+                        raise AttributeError(
+                            "attribute 'final_result' has already be used,"
+                            "please modify your derived Item class")
+                    try:
+                        setattr(item, "final_result", value)
+                    except AttributeError:
+                        print("item itself is data with builtin type")
+                        return False
+                    return True
 
-               result = set([assignment(*z) for z in zip(items, outputs)])
-               if len(result) > 1:
-                   raise RuntimeError("Partial error during run_internal")
+                result = set([assignment(*z) for z in zip(items, outputs)])
+                if len(result) > 1:
+                    raise RuntimeError("Partial error during run_internal")
 
-               return items if result.pop() else outputs
+                return items if result.pop() else outputs
 
-        pipe = pipe.map_batches(BatchInfer(self.run_internal), compute="actors", batch_size=batch_size, drop_last=True)
+        pipe = pipe.map_batches(
+            BatchInfer(self.run_internal),
+            compute="actors",
+            batch_size=batch_size,
+            drop_last=True)
         pipe = pipe.map(self.postprocess)
 
         correct = 0
@@ -233,8 +230,6 @@ class OnnxModel(Model):
             correct += row
 
         print(correct)
-
-
 
     def create_session(self, device_name: str, model_path: str) -> BaseSession:
         device = Device.parse(device_name)
@@ -262,9 +257,9 @@ class OnnxModel(Model):
         return self.create_session(device_name, model_path)
 
     def create_session_func_by_device(self, device_name: str):
-        # Used to create multi-session on the same device with differente model paths
+        # create multi-session on the same device with differente model paths
         return partial(self.create_session, device_name=device_name)
 
     def create_session_func_by_model(self, model_path: str):
-        # Used to create multi-session on different devices with the same path
+        # create multi-session on different devices with the same path
         return partial(self.create_session, model_path=model_path)

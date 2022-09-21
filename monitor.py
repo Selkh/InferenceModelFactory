@@ -51,7 +51,6 @@ class Monitor(object):
 
         options = model.get_options()
         args = options.parse_args()
-        print(args.__dict__)
 
         for key, value in vars(args).items():
             setattr(options, '_' + key, value)

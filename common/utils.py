@@ -22,7 +22,7 @@ import traceback
 from types import ModuleType
 from importlib.machinery import ModuleSpec
 from importlib.abc import Loader
-from importlib._bootstrap_external import PathFinder, FileFinder
+from importlib._bootstrap_external import PathFinder
 
 
 class PseudoModule(ModuleType):
@@ -31,12 +31,16 @@ class PseudoModule(ModuleType):
 
     def __getattribute__(self, key):
         global count
-        if key in ['name', '__name__', '__loader__', '__package__', '__path__']:
+        if key in ["name",
+                   "__name__",
+                   "__loader__",
+                   "__package__",
+                   "__path__"]:
             return super(PseudoModule, self).__getattribute__(key)
         else:
             sys.meta_path.pop()
-            raise ModuleNotFoundError(f"No module named {self.name!r}",
-                                      name=self.name)
+            raise ModuleNotFoundError(
+                f"No module named {self.name!r}", name=self.name)
 
 
 class PseudoLoader(Loader):
@@ -51,22 +55,22 @@ class PseudoLoader(Loader):
 class PseudoFinder(PathFinder):
     def find_spec(self, fullname, path=None, target=None):
         # Be called only when module not found
-        parent = fullname.rpartition('.')[0]
+        parent = fullname.rpartition(".")[0]
 
         # where requires this not found module
         fname = None
         fno = 0
         fline = ""
         for frame in reversed(traceback.extract_stack()):
-            if frame.name == 'find_spec':
+            if frame.name == "find_spec":
                 # function itself
                 continue
 
-            if frame.filename.startswith('<'):
+            if frame.filename.startswith("<"):
                 # system frozen module
                 continue
-
-            # if frame.name == '<module>': # '<module>' is not the only standard for call stack
+            # '<module>' is not the only standard for call stack
+            # if frame.name == '<module>':
             # record the first real import
             fname = frame.filename
             fno = frame.lineno
@@ -74,13 +78,14 @@ class PseudoFinder(PathFinder):
             break
 
         if fname and fno and fline:
-            if fname.startswith('/usr'): # need by system lib
+            if fname.startswith("/usr"):  # need by system lib
                 return None
             print(
-                "\nWarning: No module named {}, ignore during register but will"
-                " raise error if called.\nFirst required by\n  File \"{}\", "
-                "line {}, in <module>\n    {}\n".format(
-                    fullname, fname, fno, fline))
+                "\nWarning: No module named {}, ignore during register but "
+                "will raise error if called.\nFirst required by\n"
+                "  File '{}', line {}, in <module>\n    {}\n".format(
+                    fullname, fname, fno, fline)
+            )
 
         if not parent:
             # module in sys path
@@ -101,6 +106,7 @@ sys.meta_path.append(PseudoFinder())
 
 
 black_list = ["__pycache__", "__init__.py"]
+
 
 def traversal(path):
     for p in os.listdir(path):

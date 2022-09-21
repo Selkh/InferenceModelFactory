@@ -18,7 +18,6 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
 from .device import Device
-from .session import BaseSession
 from .options import Options, new_options
 
 
@@ -36,11 +35,17 @@ class ModelNotInitException(Exception):
     def __init__(self):
         print(
             "Error: If '__init__' is overrided, that of super class must"
-            " be derived in concrete model")
+            " be derived in concrete model"
+        )
+
+
+class ModelArgumentException(Exception):
+    def __init__(self, name: str, args: str):
+        print("method '{}' has additional arguments: {}".format(name, args))
 
 
 class Model(ABC):
-    __slot__ = ['_device', '_options']
+    __slot__ = ["_device", "_options"]
 
     def __init__(self):
         self._options = new_options()
@@ -50,7 +55,7 @@ class Model(ABC):
         self._options = options
 
     def get_options(self) -> Options:
-        if not hasattr(self, '_options'):
+        if not hasattr(self, "_options"):
             raise ModelNotInitException()
         return self._options
 
@@ -59,17 +64,20 @@ class Model(ABC):
         self._device = device
 
     def get_device(self):
-        if not hasattr(self, '_device'):
+        if not hasattr(self, "_device"):
             raise ModelNotSetDeviceException()
         return self._device
 
     @abstractmethod
     def create_dataset(self):
-        raise NotImplementedError("Must implement method of create dataset for model")
+        raise NotImplementedError(
+            "Must implement method of create dataset for model")
 
     @abstractmethod
     def load_data(self, path):
-        raise NotImplementedError("Must implement method of load data from path of each item")
+        raise NotImplementedError(
+            "Must implement method of load data from path of each item"
+        )
 
     @abstractmethod
     def preprocess(self):
@@ -86,10 +94,14 @@ class Model(ABC):
     def __check_argument(self, func, allowed_number):
         argcount = func.__code__.co_argcount
         if argcount > allowed_number:
-            raise OnnxModelArgumentException(func.__name__, str(func.__code__.co_varnames[allowed_number: argcount])[1:-1])
+            raise ModelArgumentException(
+                func.__name__,
+                str(func.__code__.co_varnames[allowed_number:argcount])[1:-1],
+            )
 
     def __check_rtn_value(self, f):
         import dis
+
         last_instr = None
         for instr in dis.get_instructions(f):
             if instr.opcode != 83:
@@ -97,7 +109,8 @@ class Model(ABC):
         if last_instr and last_instr.argval:
             pass
         else:
-            raise ValueError("No return value in function {}.".format(f.__name__))
+            raise ValueError(
+                "No return value in function {}.".format(f.__name__))
 
     def sanity_check(self):
         # check argument and return value for method 'create_dataset'
@@ -111,16 +124,18 @@ class Model(ABC):
     @staticmethod
     def make_batch(batch):
         import numpy as np
+
         type_name = type(batch[0]).__name__
-        if type_name == 'ndarray':
+        if type_name == "ndarray":
             # numpy array
             return np.stack(batch, 0)
-        elif type_name in ['int', 'float', 'str']:
+        elif type_name in ["int", "float", "str"]:
             # scalar type
             return np.array(batch)
-        elif type_name == 'list':
+        elif type_name == "list":
             return [Model.make_batch(b) for b in zip(*batch)]
-        elif type_name == 'dict':
-            return {key: Model.make_batch([b[key] for b in batch]) for key in batch[0]}
+        elif type_name == "dict":
+            return {key: Model.make_batch([b[key] for b in batch])
+                    for key in batch[0]}
         else:
             raise TypeError("Dataset has data with unsupported type")

@@ -23,8 +23,6 @@ from PIL import Image
 from common.data_process.img_preprocess import img_resize, img_center_crop
 import numpy as np
 
-import time
-
 
 class RN50Factory(OnnxModelFactory):
     model = "resnet50"
@@ -32,11 +30,13 @@ class RN50Factory(OnnxModelFactory):
     def new_model():
         return RN50()
 
+
 class RN50Item(Item):
     def __init__(self, name, data, label):
         super(RN50Item, self).__init__(data)
         self.name = name
         self.label = label
+
 
 class RN50(OnnxModel):
     def __init__(self):
@@ -65,7 +65,6 @@ class RN50(OnnxModel):
         resize_size = int(self.options.get_resize_size())
 
         input_size = (width, height)
-        max_size = max(width, height)
 
         image = img_resize(item.data, resize_size)
         image = img_center_crop(image, input_size)
@@ -75,19 +74,21 @@ class RN50(OnnxModel):
         stddev_vec = np.array([0.229, 0.224, 0.225])
         norm_image_data = np.zeros(image_data.shape).astype('float32')
         for i in range(image_data.shape[0]):
-            norm_image_data[i, :, :] = (image_data[i, :, :] / 255 - mean_vec[i]) / stddev_vec[i]
-        norm_image_data = norm_image_data.reshape(3, height, width).astype('float32')
+            norm_image_data[i, :, :] = (
+                image_data[i, :, :] / 255 - mean_vec[i]) / stddev_vec[i]
+        norm_image_data = norm_image_data.reshape(
+            3, height, width).astype('float32')
         item.data = norm_image_data
         return item
 
     def run_internal(self, sess, datas):
         return datas
 
-    def postprocess(self, items):
+    def postprocess(self, item):
         print("rn50 engine postprocessing")
         import numpy as np
 
-        if np.all(items.data == items.final_result):
+        if np.all(item.data == item.final_result):
             return 1
         else:
             return 0

@@ -17,10 +17,9 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__all__ = ['get_default_options', 'new_options', 'reset_options',
-           'remove_options']
+__all__ = ["get_default_options", "new_options",
+           "reset_options", "remove_options"]
 
-import sys
 import threading
 import argparse
 
@@ -51,10 +50,10 @@ class Options:
         return self._parser.parse_known_args()
 
     def get(self, key):
-        if key.startswith('_'):
+        if key.startswith("_"):
             k = key
         else:
-            k = '_' + key
+            k = "_" + key
 
         if hasattr(self, k):
             return getattr(self, k)

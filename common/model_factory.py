@@ -17,9 +17,13 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-__all__ = ['ModelFactory', 'ModelUnimplementException',
-           'ModelNameConflictException', 'ModelNameUndefinedException',
-           'ModelNotCompleteException']
+__all__ = [
+    "ModelFactory",
+    "ModelUnimplementException",
+    "ModelNameConflictException",
+    "ModelNameUndefinedException",
+    "ModelNotCompleteException",
+]
 
 
 class ModelUnimplementException(Exception):
@@ -28,9 +32,7 @@ class ModelUnimplementException(Exception):
 
 class ModelNameConflictException(Exception):
     def __init__(self, name: str):
-        print(
-            "\nname: {} has been registered, please check or rename\n".format(
-                name))
+        print("\nname: {} has been registered, please check or rename\n".format(name))
 
 
 class ModelNameUndefinedException(Exception):
@@ -41,20 +43,22 @@ class ModelNotCompleteException(Exception):
     def __init__(self, name: str, method: str):
         print(
             "\nmodel: {} does not have method: {}, please realize it\n".format(
-                name, method))
+                name, method
+            )
+        )
 
 
 class BaseModelFactory(type):
-    __framework_name = 'name'
-    __model_name = 'model'
+    __framework_name = "name"
+    __model_name = "model"
     __registered_map = {}
 
-    __abstractmethods = set(['new_model'])
+    __abstractmethods = set(["new_model"])
 
     def __new__(mcs, *args, **kwargs):
         cls = super(BaseModelFactory, mcs).__new__(mcs, *args, **kwargs)
 
-        if cls.__name__ == 'ModelFactory' or cls.model == 'undefined':
+        if cls.__name__ == "ModelFactory" or cls.model == "undefined":
             return cls
 
         # A similar implement of abc.abstractmethod, as each derived model class
@@ -77,7 +81,7 @@ class BaseModelFactory(type):
         if not model_name:
             raise ModelNameUndefinedException()
 
-        cls_name = framework_name + '-' + model_name
+        cls_name = framework_name + "-" + model_name
         if cls_name in mcs.__registered_map:
             raise ModelNameConflictException(cls_name)
 

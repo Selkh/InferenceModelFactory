@@ -17,12 +17,11 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import argparse
 # suppose to import common.util first
 import common.utils as utils
 import onnx_models
-from common.model_factory import *
-from common.options import get_default_options, new_options
+from common.model_factory import ModelFactory, ModelUnimplementException
+from common.options import new_options
 
 
 def concat_string(frame: str, model: str):
