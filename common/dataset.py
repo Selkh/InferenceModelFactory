@@ -19,6 +19,21 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import abc
+if not hasattr(abc, '_get_dump'):
+    import sys
+    import weakref
+
+    def _get_dump(cls):
+        registry_weakrefs = set(weakref.ref(obj) for obj in cls._abc_registry)
+        return (registry_weakrefs,
+                cls._abc_cache,
+                cls._abc_negative_cache,
+                cls._abc_negative_cache_version)
+
+    m = sys.modules['sys']
+    m._get_dump = _get_dump
+
 
 from types import MethodType
 from typing import Union, Iterator, List
