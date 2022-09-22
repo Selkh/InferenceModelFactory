@@ -19,9 +19,17 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-import abc
+from ray.data.context import DatasetContext
+from ray.data.datasource import Datasource, ReadTask
+from ray.data.block import Block, BlockMetadata, T
+import ray
+from typing import Union, Iterator, List
+from types import MethodType
+import sys
+abc = sys.modules['abc']
+
+
 if not hasattr(abc, '_get_dump'):
-    import sys
     import weakref
 
     def _get_dump(cls):
@@ -31,16 +39,8 @@ if not hasattr(abc, '_get_dump'):
                 cls._abc_negative_cache,
                 cls._abc_negative_cache_version)
 
-    m = sys.modules['sys']
-    m._get_dump = _get_dump
+    abc._get_dump = _get_dump
 
-
-from types import MethodType
-from typing import Union, Iterator, List
-import ray
-from ray.data.block import Block, BlockMetadata, T
-from ray.data.datasource import Datasource, ReadTask
-from ray.data.context import DatasetContext
 
 if not ray.is_initialized():
     ray.init(num_cpus=8)

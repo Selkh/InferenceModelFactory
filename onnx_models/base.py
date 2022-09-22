@@ -28,6 +28,8 @@ from common.device import Device
 from common.dataset import Item
 import onnxruntime as rt
 
+import ray
+
 
 class OnnxModelPathNotSetException(Exception):
     def __init__(self):
@@ -40,27 +42,67 @@ class OnnxModelFactory(ModelFactory):
 
 
 class OrtSession(BaseSession):
-    def __init__(self, path_or_bytes, sess_options=None, **kwargs):
-        if isinstance(path_or_bytes, str):
-            import onnx
-            self.onnx_bytes = onnx.load(path_or_bytes)
-        elif isinstance(path_or_bytes, bytes):
-            self.onnx_bytes = path_or_bytes
-        else:
-            raise TypeError("Not supported type '' for onnx session created".format(type(path_or_bytes)))
+    _loop = 0
+    _time = []
 
-        self.sess = rt.InferenceSession(self.onnx_bytes.SerializeToString())
+    def __init__(self,
+                 path_or_bytes,
+                 sess_options=None,
+                 providers=None,
+                 provider_options=None, **kwargs):
+        # if isinstance(path_or_bytes, str):
+        #     import onnx
+        #     self.onnx_bytes = onnx.load(path_or_bytes)
+        # elif isinstance(path_or_bytes, bytes):
+        #     self.onnx_bytes = path_or_bytes
+        # else:
+        # raise TypeError(
+        #     "Not supported type '{}' for onnx session".format(
+        #         type(path_or_bytes)))
+
+        # self.sess = rt.InferenceSession(self.onnx_bytes.SerializeToString())
         # self._version = rt.__version__
+        if isinstance(path_or_bytes, str):
+            self.path = path_or_bytes
+        else:
+            raise TypeError(
+                "Not supported type '{}' by now".format(type(path_or_bytes)))
 
-        self.loop = 0
-        self.time = []
+        self.sess_options = sess_options
+        self.providers = providers
+        self.provider_options = provider_options
+
+        if 'disabled_optimizers' in kwargs:
+            self.kwargs = {
+                'disabled_optimizers': kwargs['disabled_optimizers']}
+        else:
+            self.kwargs = {}
+
+        self.sess = rt.InferenceSession(
+            self.path, sess_options, providers, provider_options, **kwargs)
 
     def __getstate__(self):
-        return {'onnx_bytes': self.onnx_bytes}
+        # return {'onnx_bytes': self.onnx_bytes}
+        return {'path': self.path,
+                'sess_options': self.sess_options,
+                'providers': self.providers,
+                'provider_options': self.provider_options,
+                'kwargs': self.kwargs}
 
     def __setstate__(self, values):
-        self.onnx_bytes = value['onnx_bytes']
-        self.sess = rt.InferenceSession(self.onnx_bytes.SerializeToString())
+        # self.onnx_bytes = values['onnx_bytes']
+        # self.sess = rt.InferenceSession(self.onnx_bytes.SerializeToString())
+        self.path = values['path']
+        self.sess_options = values['sess_options']
+        self.providers = values['providers']
+        self.provider_options = values['provider_options']
+        self.kwargs = values['kwargs']
+        self.sess = rt.InferenceSession(
+            self.path,
+            self.sess_options,
+            self.providers,
+            self.provider_options,
+            **self.kwargs)
 
     @property
     def version(self):
@@ -99,11 +141,11 @@ class OrtSession(BaseSession):
         self.sess.enable_fallback()
 
     def run(self, output_names, input_feed, run_options=None):
-        self.loop += 1
+        self._loop += 1
         start = time.time()
         output = self.sess.run(output_names, input_feed, run_options=None)
         end = time.time()
-        self.time.append(end - start)
+        self._time.append(end - start)
         return output
 
     def run_with_ort_values(self, output_names, input_dict_ort_values,
@@ -125,54 +167,112 @@ class OrtSession(BaseSession):
         return self.sess.run_with_iobinding(iobinding, run_options=None)
 
     def generate_provider_options(self, options, device):
-        return [{}]
+        return [{}], {}
 
 
 @register_session
 class OrtCPUSession(OrtSession):
+    def __init__(self, path_or_bytes, sess_options=None, **kwargs):
+        if 'model_options' in kwargs:
+            model_options = kwargs['model_options']
+        else:
+            model_options = None
+        provider_options, kwargs = self.generate_provider_options(
+            model_options)
+
+        super().__init__(
+            path_or_bytes,
+            sess_options=sess_options,
+            providers=['CPUExecutionProvider'],
+            provider_options=provider_options,
+            **kwargs)
 
     def name(self):
         return "onnx-cpu"
 
-    def set_providers(self, provider_options=None):
-        providers = ['CPUExecutionProvider']
-        super().set_providers(providers, provider_options)
+    def generate_provider_options(self, options=None):
+        key = 'disabled_optimizers'
+        if options and options.get(key):
+            return None, {key: options.get(key)}
+        else:
+            return None, {}
 
 
 @register_session
 class OrtGPUSession(OrtSession):
+    def __init__(self, path_or_bytes, sess_options=None, **kwargs):
+        if 'model_options' in kwargs:
+            model_options = kwargs['model_options']
+        else:
+            model_options = None
+        provider_options, kwargs = self.generate_provider_options(
+            model_options)
+
+        super().__init__(
+            path_or_bytes,
+            sess_options=sess_options,
+            providers=['CUDAExecutionProvider'],
+            provider_options=provider_options,
+            **kwargs)
 
     def name(self):
         return "onnx-gpu"
 
-    def set_providers(self, provider_options=None):
-        providers = ['CUDAExecutionProvider']
-        super().set_providers(providers, provider_options)
+    def generate_provider_options(self, options=None):
+        key = 'disabled_optimizers'
+        if options and options.get(key):
+            return None, {key: options.get(key)}
+        else:
+            return None, {}
 
 
 @register_session
 class OrtGCUSession(OrtSession):
+    def __init__(self, path_or_bytes, sess_options=None, **kwargs):
+        if 'model_options' in kwargs:
+            model_options = kwargs['model_options']
+        else:
+            model_options = None
+        if 'model_device' in kwargs:
+            model_device = kwargs['model_device']
+        else:
+            model_device = None
+
+        provider_options, kwargs = self.generate_provider_options(
+            model_options, model_device)
+
+        super().__init__(
+            path_or_bytes,
+            sess_options=sess_options,
+            providers=['TopsInferenceExecutionProvider'],
+            provider_options=provider_options,
+            kwargs=kwargs
+        )
 
     def name(self):
         return "onnx-gcu"
 
-    def set_providers(self, provider_options=None):
-        providers = ['TopsInferenceExecutionProvider']
-        super().set_providers(providers, provider_options)
+    def generate_provider_options(self, options=None, device=None):
 
-    def generate_provider_options(self, options, device):
         provider_options = [{}]
+        kwargs = {}
         key_list = ['output_names', 'compiled_batchsize',
                     'export_executable', 'load_executable']
 
-        for key in key_list:
-            value = options.get(key)
-        if value:
-            provider_options[0].update({key: value})
+        if options:
+            for key in key_list:
+                value = options.get(key)
+                if value:
+                    provider_options[0].update({key: value})
+            if options.get('disabled_optimizers'):
+                kwargs['disabled_optimizers'] = options.get(
+                    'disabled_optimizers')
+        if device:
+            provider_options[0].update({'device': device.id})
+            if len(device.cluster_ids):
+                provider_options[0].update({'cluster': device.cluster_ids})
 
-        provider_options[0].update({'device': device.id})
-        provider_options[0].update({'cluster': device.cluster_ids})
-        return provider_options
+        return provider_options, kwargs
 
 
 class OnnxModel(Model):
@@ -200,6 +300,7 @@ class OnnxModel(Model):
         pipe = pipe.map(self.preprocess)
 
         sess = self.create_session_by_options(options)
+        ray_sess = ray.put(sess)
 
         class BatchInfer:
             def __init__(self, fn):
@@ -213,7 +314,7 @@ class OnnxModel(Model):
                     # Not identified data
                     batch = Model.make_batch(items)
 
-                outputs = self.fn(sess, batch)
+                outputs = self.fn(ray.get(ray_sess), batch)
 
                 def assignment(item, value):
                     if hasattr(item, 'final_result'):
@@ -227,7 +328,8 @@ class OnnxModel(Model):
                         return False
                     return True
 
-                result = set([assignment(*z) for z in zip(items, outputs)])
+                result = set([assignment(*z)
+                             for z in zip(items, zip(*outputs))])
                 if len(result) > 1:
                     raise RuntimeError("Partial error during run_internal")
 
@@ -251,12 +353,13 @@ class OnnxModel(Model):
         device = Device.parse(device_name)
         self.set_device(device)
 
-        sess = SESSION_FACTORY['onnx-' + device.type](model_path)
-
         options = self.get_options()
-        provider_options = sess.generate_provider_options(options, device)
 
-        sess.set_providers(provider_options)
+        sess = SESSION_FACTORY['onnx-' +
+                               device.type](model_path,
+                                            model_options=options,
+                                            model_device=device)
+
         return sess
 
     def create_session_by_options(self, options) -> BaseSession:

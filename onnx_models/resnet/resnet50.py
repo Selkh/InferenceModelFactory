@@ -55,7 +55,7 @@ class RN50(OnnxModel):
     def load_data(self, path):
         img_file, label = path.split(" ")
         data = Image.open(img_file).convert("RGB")
-        name = img_file.split("\/")[-1]
+        name = img_file.split("/")[-1]
         label = int(label)
         return RN50Item(name, data, label)
 
@@ -82,10 +82,10 @@ class RN50(OnnxModel):
         return item
 
     def run_internal(self, sess, datas):
-        return datas
+        input_name = sess.get_inputs()[0].name
+        return sess.run([], {input_name: datas})
 
     def postprocess(self, item):
-        print("rn50 engine postprocessing")
         import numpy as np
 
         if np.all(item.data == item.final_result):

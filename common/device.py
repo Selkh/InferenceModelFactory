@@ -124,7 +124,7 @@ class Device:
                 )
 
             device_id = 0
-            cluster_ids = [-1]
+            cluster_ids = []
             return Device(
                 name=name,
                 device_type=device_type,
@@ -161,7 +161,7 @@ class Device:
 
         if ncolon == 1:
             device_id = int(name[seperator_0 + 1 :])
-            cluster_ids = [-1]
+            cluster_ids = []
             return Device(
                 name=name,
                 device_type=device_type,
