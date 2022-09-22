@@ -41,16 +41,32 @@ class OnnxModelFactory(ModelFactory):
 
 class OrtSession(BaseSession):
     def __init__(self, path_or_bytes, sess_options=None, **kwargs):
-        self.sess = rt.InferenceSession(path_or_bytes, sess_options, **kwargs)
-        self._version = rt.__version__
+        if isinstance(path_or_bytes, str):
+            import onnx
+            self.onnx_bytes = onnx.load(path_or_bytes)
+        elif isinstance(path_or_bytes, bytes)
+            self.onnx_bytes = path_or_bytes
+        else:
+            raise TypeError("Not supported type '' for onnx session created".format(type(path_or_bytes)))
+
+        self.sess = rt.InferenceSession(self.onnx_bytes.SerializeToString())
+        # self._version = rt.__version__
 
         self.loop = 0
         self.time = []
 
+    def __getstate__(self):
+        return {'onnx_bytes': self.onnx_bytes}
+
+    def __setstate__(self, values):
+        self.onnx_bytes = value['onnx_bytes']
+        self.sess = rt.InferenceSession(self.onnx_bytes.SerializeToString())
+
     @property
     def version(self):
         # return "1.9.1"
-        return self._version
+        # return self._version
+        return rt.__version__
 
     def get_session_options(self):
         return self.sess.get_session_options()
