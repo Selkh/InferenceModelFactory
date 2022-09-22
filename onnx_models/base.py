@@ -44,7 +44,7 @@ class OrtSession(BaseSession):
         if isinstance(path_or_bytes, str):
             import onnx
             self.onnx_bytes = onnx.load(path_or_bytes)
-        elif isinstance(path_or_bytes, bytes)
+        elif isinstance(path_or_bytes, bytes):
             self.onnx_bytes = path_or_bytes
         else:
             raise TypeError("Not supported type '' for onnx session created".format(type(path_or_bytes)))
