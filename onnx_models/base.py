@@ -342,12 +342,9 @@ class OnnxModel(Model):
             drop_last=True)
         pipe = pipe.map(self.postprocess)
 
-        correct = 0
-        for row in pipe.iter_rows():
-            # print(batch[0].data.shape)
-            correct += row
+        collections = pipe.take()
+        return self.eval(collections)
 
-        print(correct)
 
     def create_session(self, device_name: str, model_path: str) -> BaseSession:
         device = Device.parse(device_name)

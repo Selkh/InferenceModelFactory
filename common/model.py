@@ -91,6 +91,10 @@ class Model(ABC):
     def postprocess(self):
         pass
 
+    @abstractmethod
+    def eval(self, collections):
+        pass
+
     def __check_argument(self, func, allowed_number):
         argcount = func.__code__.co_argcount
         if argcount > allowed_number:
