@@ -246,7 +246,7 @@ class OrtGCUSession(OrtSession):
             sess_options=sess_options,
             providers=['TopsInferenceExecutionProvider'],
             provider_options=provider_options,
-            kwargs=kwargs
+            **kwargs
         )
 
     def name(self):

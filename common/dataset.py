@@ -19,10 +19,10 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import ray
 from ray.data.context import DatasetContext
 from ray.data.datasource import Datasource, ReadTask
 from ray.data.block import Block, BlockMetadata, T
-import ray
 from typing import Union, Iterator, List
 from types import MethodType
 import sys
@@ -40,6 +40,20 @@ if not hasattr(abc, '_get_dump'):
                 cls._abc_negative_cache_version)
 
     abc._get_dump = _get_dump
+
+if sys.version_info < (3, 7):
+    def wrap(f):
+        def wrapper(type_constructor, name, bases,
+                    type_kwargs, class_tracker_id, extra):
+            for b in bases:
+                if hasattr(b, '_is_protocol'):
+                    b._is_protocol = True
+            return f(type_constructor, name, bases,
+                     type_kwargs, class_tracker_id, extra)
+        return wrapper
+
+    ray.cloudpickle.cloudpickle_fast._make_skeleton_class = wrap(
+        ray.cloudpickle.cloudpickle_fast._make_skeleton_class)
 
 
 if not ray.is_initialized():
