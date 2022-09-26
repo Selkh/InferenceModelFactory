@@ -32,6 +32,7 @@ class Yolo(OnnxModel):
     def __init__(self):
         self.options = self.get_options()
         self.options.add_argument('--model_path')
+        self.options.add_argument('--iou')
 
     def preprocess(self, *args, **kwargs):
         print("yolo engine preprocessing")

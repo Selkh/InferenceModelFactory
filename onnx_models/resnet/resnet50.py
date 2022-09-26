@@ -24,23 +24,23 @@ from common.data_process.img_preprocess import img_resize, img_center_crop
 import numpy as np
 
 
-class RN50Factory(OnnxModelFactory):
+class ResNet50Factory(OnnxModelFactory):
     model = "resnet50"
 
     def new_model():
-        return RN50()
+        return ResNet50()
 
 
-class RN50Item(Item):
+class ResNet50Item(Item):
     def __init__(self, name, data, label):
-        super(RN50Item, self).__init__(data)
+        super(ResNet50Item, self).__init__(data)
         self.name = name
         self.label = label
 
 
-class RN50(OnnxModel):
+class ResNet50(OnnxModel):
     def __init__(self):
-        super(RN50, self).__init__()
+        super(ResNet50, self).__init__()
         self.options = self.get_options()
         self.options.add_argument('--model_path')
         self.options.add_argument('--data_path')
@@ -57,7 +57,7 @@ class RN50(OnnxModel):
         data = Image.open(img_file).convert("RGB")
         name = img_file.split("/")[-1]
         label = int(label)
-        return RN50Item(name, data, label)
+        return ResNet50Item(name, data, label)
 
     def preprocess(self, item):
         width = int(self.options.get_input_width())

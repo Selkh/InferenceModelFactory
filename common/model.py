@@ -18,7 +18,7 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 from abc import ABC, abstractmethod
 from .device import Device
-from .options import Options, new_options
+from .options import Options, get_default_options
 
 
 class ModelNotSetOptionException(Exception):
@@ -48,7 +48,13 @@ class Model(ABC):
     __slot__ = ["_device", "_options"]
 
     def __init__(self):
-        self._options = new_options()
+        options = get_default_options()
+        subparsers = options.get_subparsers()
+        if self.__class__.__name__ in subparsers.choices:
+            self._options = Options(options.get_parser(), freeze=True)
+        else:
+            subparser = subparsers.add_parser(self.__class__.__name__.lower())
+            self._options = Options(subparser)
 
     def set_options(self, options: Options):
         # setattr(self, 'options', options)

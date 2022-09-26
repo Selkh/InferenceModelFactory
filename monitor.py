@@ -19,7 +19,7 @@ limitations under the License.
 
 import time
 from common.model import Model
-from common.options import Options
+from common.options import Options, get_default_options
 
 
 def create_set_function(options: Options, key, *args, **kwargs):
@@ -49,8 +49,9 @@ class Monitor(object):
         self.count += 1
         print("Execute model with class name: {}".format(type(model).__name__))
 
+        global_options = get_default_options()
+        args = global_options.parse_args()
         options = model.get_options()
-        args = options.parse_args()
 
         for key, value in vars(args).items():
             setattr(options, '_' + key, value)
