@@ -23,6 +23,7 @@ from common.model import Model
 
 class yolo(OnnxModelFactory):
     model = "yolo"
+    stage = "beta"
 
     def new_model() -> Model:
         return Yolo()

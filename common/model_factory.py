@@ -51,6 +51,7 @@ class ModelNotCompleteException(Exception):
 class BaseModelFactory(type):
     _framework_name = "name"
     _model_name = "model"
+    _develop_stage = "stage"
     _registered_map = {}
     _develop_map = {"done": [], "beta": [], "alpha": []}
 
@@ -88,11 +89,12 @@ class BaseModelFactory(type):
 
         mcs._registered_map[cls_name] = cls
 
-        if not hasattr(cls, '_develop_stage'):
+        stage = getattr(cls, mcs._develop_stage, None)
+        if not stage:
             mcs._develop_map["done"].append(cls_name)
         else:
-            assert cls._develop_stage in ['alpha', 'beta', 'done']
-            mcs._develop_map[cls._develop_stage].append(cls_name)
+            assert stage in ['alpha', 'beta', 'done']
+            mcs._develop_map[stage].append(cls_name)
 
     def display_all(cls):
         return type(cls)._registered_map
@@ -134,29 +136,3 @@ class BaseModelFactory(type):
 
 class ModelFactory(metaclass=BaseModelFactory):
     pass
-
-
-def Completeness(*args, **kwargs):
-    if len(args) == 1 and len(kwargs) == 0 and callable(args[0]):
-        return Completeness("done")(args[0])
-
-    if "stage" in kwargs:
-        stage = kwargs["stage"]
-        # Divide the development of a model into three stages:
-        #    alpha: run pass on cpu & gpu, satisfy correctness
-        #    beta: run pass on gcu
-        #    done: run pass on gcu, satisfy correctness and deliver to QA
-        assert stage in ['alpha', 'beta', 'done']
-    elif kwargs:
-        raise KeyError("Unkonwn key in kwargs: {}".format(kwargs.keys()))
-    else:
-        stage = "done"
-
-    def wrap(obj):
-        if not obj.__doc__:
-            obj.__doc__ = ""
-
-        obj.__doc__ += ("\n Development in '{}' stage".format(stage))
-        setattr(obj, '_develop_stage', stage)
-        return obj
-    return wrap
