@@ -53,6 +53,10 @@ class BaseModelFactory(type):
     _model_name = "model"
     _develop_stage = "stage"
     _registered_map = {}
+    # Divide the development of a model into three stages:
+    #    alpha: run pass on cpu & gpu, satisfy correctness
+    #    beta: run pass on gcu
+    #    done: run pass on gcu, satisfy correctness and deliver to QA
     _develop_map = {"done": [], "beta": [], "alpha": []}
 
     _abstractmethods = set(["new_model"])
