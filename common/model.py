@@ -56,6 +56,11 @@ class Model(ABC):
             subparser = subparsers.add_parser(self.__class__.__name__.lower())
             self._options = Options(subparser)
 
+        # add 'device' as default argument considering its general usage
+        self._options.add_argument('--device', default='gcu', type=str,
+                                   help='on which device to execute model,'
+                                   'partial or full support cpu/gpu/gcu')
+
     def set_options(self, options: Options):
         # setattr(self, 'options', options)
         self._options = options
