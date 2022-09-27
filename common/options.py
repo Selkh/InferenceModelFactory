@@ -32,22 +32,75 @@ class Options:
     interface to achieve same function
     """
 
-    def __init__(self):
-        self._parser = argparse.ArgumentParser(allow_abbrev=False)
+    def __init__(self, parser=None, freeze=False):
+        self._freeze = freeze
+        if not parser:
+            self._parser = argparse.ArgumentParser(allow_abbrev=False)
+        else:
+            self._parser = parser
 
     def get_parser(self):
         # Usually where's no need to get parser but just in case
         return self._parser
 
     def add_argument(self, *args, **kwargs):
-        self._parser.add_argument(*args, **kwargs)
+        if not self._freeze:
+            self._parser.add_argument(*args, **kwargs)
 
     def parse_args(self, args=None, namespace=None):
-        # Todo: check whether arg starts with '_'
-        return self._parser.parse_known_args(args, namespace)[0]
+        args, argv = self.parse_known_args(args, namespace)
+        if argv:
+            raise ValueError(
+                'unrecognized arguments: {} for model: {}'.
+                format(argv, args.model))
+        return args
+        # return self._parser.parse_known_args(args, namespace)
 
-    def parse_known_args(self):
-        return self._parser.parse_known_args()
+    def parse_known_args(self, args=None, namespace=None):
+        if args is None:
+            import sys as _sys
+            args = _sys.argv[1:]
+        else:
+            args = list(args)
+
+        # Adjust order of parameters insert 'choice' to arg string
+        args_iter = iter(args)
+        for idx, arg in enumerate(args_iter):
+            # 'model' and 'framework' should always come first who
+            #  decides which object to be initialized
+            if arg.startswith('--model'):
+                # as format "--model resnet50"
+                if arg == '--model':
+                    model = args[idx + 1]
+                    args.remove('--model')
+                    args.remove(model)
+                    args.insert(0, '--model')
+                    args.insert(1, model)
+                    index = 4
+                elif arg.startswith('--model='):
+                    model = arg[8:]
+                    args.remove(arg)
+                    args.insert(0, arg)
+                    index = 2
+
+            if arg.startswith('--frame'):
+                if arg == '--frame':
+                    frame = args[idx + 1]
+                    args.remove('--frame')
+                    args.remove(frame)
+                    args.insert(0, '--frame')
+                    args.insert(1, frame)
+
+        args.insert(index, model)
+
+        return self._parser.parse_known_args(args, namespace)
+
+    def get_subparsers(self):
+
+        if not self._parser._subparsers:
+            self.subparsers = self._parser.add_subparsers()
+
+        return self.subparsers
 
     def get(self, key):
         if key.startswith("_"):

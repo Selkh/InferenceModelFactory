@@ -32,7 +32,7 @@ class ModelUnimplementException(Exception):
 
 class ModelNameConflictException(Exception):
     def __init__(self, name: str):
-        print("\nname: {} has been registered, please check or rename\n".format(name))
+        print("\nmodel: {} has been registered, please rename\n".format(name))
 
 
 class ModelNameUndefinedException(Exception):
@@ -49,11 +49,17 @@ class ModelNotCompleteException(Exception):
 
 
 class BaseModelFactory(type):
-    __framework_name = "name"
-    __model_name = "model"
-    __registered_map = {}
+    _framework_name = "name"
+    _model_name = "model"
+    _develop_stage = "stage"
+    _registered_map = {}
+    # Divide the development of a model into three stages:
+    #    alpha: run pass on cpu & gpu, satisfy correctness
+    #    beta: run pass on gcu
+    #    done: run pass on gcu, satisfy correctness and deliver to QA
+    _develop_map = {"done": [], "beta": [], "alpha": []}
 
-    __abstractmethods = set(["new_model"])
+    _abstractmethods = set(["new_model"])
 
     def __new__(mcs, *args, **kwargs):
         cls = super(BaseModelFactory, mcs).__new__(mcs, *args, **kwargs)
@@ -61,10 +67,10 @@ class BaseModelFactory(type):
         if cls.__name__ == "ModelFactory" or cls.model == "undefined":
             return cls
 
-        # A similar implement of abc.abstractmethod, as each derived model class
+        # Similar implement to abc.abstractmethod, as each derived model class
         # must realize its create method: new_model. We tend to catch error
         # earlier than instantiate.
-        for method_name in mcs.__abstractmethods:
+        for method_name in mcs._abstractmethods:
             if method_name not in cls.__dict__.keys():
                 raise ModelNotCompleteException(cls.model, method_name)
 
@@ -73,27 +79,53 @@ class BaseModelFactory(type):
 
     @classmethod
     def __register_new_model(mcs, cls):
-        framework_name = getattr(cls, mcs.__framework_name, None)
+        framework_name = getattr(cls, mcs._framework_name, None)
         if not framework_name:
             return
 
-        model_name = getattr(cls, mcs.__model_name, None)
+        model_name = getattr(cls, mcs._model_name, None)
         if not model_name:
             raise ModelNameUndefinedException()
 
         cls_name = framework_name + "-" + model_name
-        if cls_name in mcs.__registered_map:
+        if cls_name in mcs._registered_map:
             raise ModelNameConflictException(cls_name)
 
-        mcs.__registered_map[cls_name] = cls
+        mcs._registered_map[cls_name] = cls
+
+        stage = getattr(cls, mcs._develop_stage, None)
+        if not stage:
+            mcs._develop_map["done"].append(cls_name)
+        else:
+            assert stage in ['alpha', 'beta', 'done']
+            mcs._develop_map[stage].append(cls_name)
 
     def display_all(cls):
-        return type(cls).__registered_map
+        return type(cls)._registered_map
+
+    def display_all_stages(cls):
+        return type(cls)._develop_map
+
+    def display_by_stage(cls, stage: str):
+        assert stage in ['alpha', 'beta', 'done']
+        return type(cls)._develop_map[stage]
+
+    def display_by_model(cls, model: str):
+        if model in type(cls)._develop_map["done"]:
+            return "done"
+        elif model in type(cls)._develop_map["beta"]:
+            return "beta"
+        elif model in type(cls)._develop_map["alpha"]:
+            return "alpha"
+        else:
+            raise ValueError(
+                "model: {} seems not supported by now, please check."
+                "Call 'display_all' to get all models support'".format(model))
 
     def get(cls, name: str):
         if not cls.is_registered(name):
             raise ModelUnimplementException()
-        return cls.__registered_map[name]
+        return cls._registered_map[name]
 
     def is_registered(cls, name: str):
         all_models = cls.display_all()
@@ -103,7 +135,7 @@ class BaseModelFactory(type):
             return False
 
     def reset(cls):
-        cls.__registered_map.clear()
+        cls._registered_map.clear()
 
 
 class ModelFactory(metaclass=BaseModelFactory):
