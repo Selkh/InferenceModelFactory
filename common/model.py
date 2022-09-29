@@ -49,11 +49,13 @@ class Model(ABC):
 
     def __init__(self):
         options = get_default_options()
+        known_args = options.parse_known_args()[0]
+        choice = known_args.model
         subparsers = options.get_subparsers()
-        if self.__class__.__name__ in subparsers.choices:
+        if choice in subparsers.choices:
             self._options = Options(options.get_parser(), freeze=True)
         else:
-            subparser = subparsers.add_parser(self.__class__.__name__.lower())
+            subparser = subparsers.add_parser(choice)
             self._options = Options(subparser)
 
         # add 'device' as default argument considering its general usage

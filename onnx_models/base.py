@@ -284,7 +284,7 @@ class OnnxModel(Model):
         self.sanity_check()
         options = self.get_options()
 
-        batch_size = 3
+        batch_size = 1  # default as 1
         if hasattr(options, '_batch_size'):
             batch_size = options.get_batch_size()
         elif hasattr(options, '_batchsize'):
