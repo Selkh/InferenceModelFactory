@@ -19,6 +19,7 @@ limitations under the License.
 
 from onnx_models.base import OnnxModelFactory, OnnxModel
 from common.dataset import read_csv, Item
+from common.model import Model
 import numpy as np
 import os
 import cv2
@@ -33,7 +34,7 @@ class UNET2DFactory(OnnxModelFactory):
 
 class UNET2DItem(Item):
     def __init__(self, data, mask):
-        super(UNET2DItem, self).__init__(data)
+        self.data = data
         self.mask = mask
 
 
@@ -112,10 +113,14 @@ class UNET2D(OnnxModel):
 
         return item
 
-    def run_internal(self, sess, datas):
+    def run_internal(self, sess, items):
         input_name = sess.get_inputs()[0].name
         output_name = sess.get_outputs()[0].name
-        return sess.run([output_name], {input_name: datas})
+        datas = Model.make_batch([item.data for item in items])
+        rtn = sess.run([output_name], {input_name: datas})
+        for z in zip(items, res):
+            Model.assignment(*z, 'final_result')
+        return items
 
     def postprocess(self, item):
         return item

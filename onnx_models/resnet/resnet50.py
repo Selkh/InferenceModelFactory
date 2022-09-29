@@ -19,6 +19,7 @@ limitations under the License.
 
 from onnx_models.base import OnnxModelFactory, OnnxModel
 from common.dataset import read_text, Item
+from common.model import Model
 from PIL import Image
 from common.data_process.img_preprocess import img_resize, img_center_crop
 import numpy as np
@@ -32,8 +33,9 @@ class ResNet50Factory(OnnxModelFactory):
 
 
 class ResNet50Item(Item):
-    def __init__(self, name, data, label):
-        super(ResNet50Item, self).__init__(data)
+    def __init__(self, data, name, label):
+        super().__init__()
+        self.data = data
         self.name = name
         self.label = label
 
@@ -57,7 +59,7 @@ class ResNet50(OnnxModel):
         data = Image.open(img_file).convert("RGB")
         name = img_file.split("/")[-1]
         label = int(label)
-        return ResNet50Item(name, data, label)
+        return ResNet50Item(data, name, label)
 
     def preprocess(self, item):
         width = int(self.options.get_input_width())
@@ -81,18 +83,24 @@ class ResNet50(OnnxModel):
         item.data = norm_image_data
         return item
 
-    def run_internal(self, sess, datas):
+    def run_internal(self, sess, items):
+        datas = Model.make_batch([item.data for item in items])
         input_name = sess.get_inputs()[0].name
-        return sess.run([], {input_name: datas})
+        res = sess.run([], {input_name: datas})[0]
+        for z in zip(items, res):
+            Model.assignment(*z, 'res')
+        return items
+
+    def arg_topk(array, k=5, axis=-1):
+        topk_ind_unsort = np.argpartition(
+            array, -k, axis=axis).take(indices=range(-k, 0), axis=axis)
+        return topk_ind_unsort
 
     def postprocess(self, item):
-        import numpy as np
 
-        if np.all(item.data == item.final_result):
-            return 1
-        else:
-            return 0
-        # return items
+        pred = np.argmax(item.res)
+        acc1 = 1 if pred == item.label else 0
+        return acc1
 
     def eval(self, collections):
-        return {"acc1": 1, "acc5": 1}
+        return {"acc1": np.sum(collections)/len(collections)}

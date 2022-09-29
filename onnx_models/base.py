@@ -25,7 +25,6 @@ from common.model_factory import ModelFactory
 from common.session import BaseSession, SESSION_FACTORY, register_session
 from common.model import Model
 from common.device import Device
-from common.dataset import Item
 import onnxruntime as rt
 
 import ray
@@ -307,33 +306,7 @@ class OnnxModel(Model):
                 self.fn = fn
 
             def __call__(self, items):
-                if isinstance(items[0], Item):
-                    # Derived class from common.dataset.Item
-                    batch = Model.make_batch([item.data for item in items])
-                else:
-                    # Not identified data
-                    batch = Model.make_batch(items)
-
-                outputs = self.fn(ray.get(ray_sess), batch)
-
-                def assignment(item, value):
-                    if hasattr(item, 'final_result'):
-                        raise AttributeError(
-                            "attribute 'final_result' has already be used,"
-                            "please modify your derived Item class")
-                    try:
-                        setattr(item, "final_result", value)
-                    except AttributeError:
-                        print("item itself is data with builtin type")
-                        return False
-                    return True
-
-                result = set([assignment(*z)
-                             for z in zip(items, zip(*outputs))])
-                if len(result) > 1:
-                    raise RuntimeError("Partial error during run_internal")
-
-                return items if result.pop() else outputs
+                return self.fn(ray.get(ray_sess), items)
 
         pipe = pipe.map_batches(
             BatchInfer(self.run_internal),
@@ -344,7 +317,6 @@ class OnnxModel(Model):
 
         collections = pipe.take()
         return self.eval(collections)
-
 
     def create_session(self, device_name: str, model_path: str) -> BaseSession:
         device = Device.parse(device_name)

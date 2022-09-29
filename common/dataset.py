@@ -211,8 +211,7 @@ def func_wrap(f):
 
 
 class Item:
-    def __init__(self, data):
-        self.data = data
+    pass
 
 
 class DatasetDatasource(Datasource[T]):

@@ -19,6 +19,7 @@ limitations under the License.
 
 from onnx_models.base import OnnxModelFactory, OnnxModel
 from common.dataset import read_dataset, Item
+from common.model import Model
 import cv2
 import numpy as np
 import torch
@@ -47,7 +48,7 @@ class SOLOFactory(OnnxModelFactory):
 
 class SOLOItem(Item):
     def __init__(self, data,metas,img_id):
-        super(SOLOItem, self).__init__(data)
+        self.data = data
         self.metas = metas
         self.img_id = img_id
 
@@ -410,12 +411,21 @@ class SOLO(OnnxModel):
         return item
 
 
-    def run_internal(self, sess, datas):
+    def run_internal(self, sess, items):
+        datas = Model.make_batch([item.data for item in items])
+
         input_name = sess.get_inputs()[0].name
         output_names = []
         for node in sess.get_outputs():
             output_names.append(node.name)
         cate_preds, seg_preds, featmap = sess.run(output_names, {input_name: datas})
+
+        assert len(items) == 1
+        item = items[0]
+        item.cate_preds = cate_preds
+        item.seg_preds = seg_preds
+        item.featmap = featmap
+        return item
 
         # TODO : drop
         # print("---datas.shape:",datas.shape)
@@ -426,14 +436,14 @@ class SOLO(OnnxModel):
         # ---cate_preds: (3872, 80)
         # ---seg_preds: (3872, 200, 304)
         # ---featmap: (1, 1600, 200, 304)
-        cate_preds = np.expand_dims(cate_preds, axis=0)
-        seg_preds = np.expand_dims(seg_preds, axis=0)
-        featmap = np.expand_dims(featmap, axis=0)
-        return [cate_preds,seg_preds,featmap]
+        # cate_preds = np.expand_dims(cate_preds, axis=0)
+        # seg_preds = np.expand_dims(seg_preds, axis=0)
+        # featmap = np.expand_dims(featmap, axis=0)
+        # return [cate_preds,seg_preds,featmap]
 
 
     def postprocess(self, item):
-        cate_preds, seg_preds, featmap = torch.from_numpy(item.final_result[0]),torch.from_numpy(item.final_result[1]),torch.from_numpy(item.final_result[2])
+        cate_preds, seg_preds, featmap = torch.from_numpy(item.cate_preds),torch.from_numpy(item.seg_preds),torch.from_numpy(item.featmap)
 
         # TODO : drop
         # print("cate_preds:",cate_preds.shape)

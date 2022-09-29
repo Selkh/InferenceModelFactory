@@ -154,3 +154,17 @@ class Model(ABC):
                     for key in batch[0]}
         else:
             raise TypeError("Dataset has data with unsupported type")
+
+    @staticmethod
+    def assignment(item, value, key):
+        if not key:
+            raise ValueError("key for value cannot be None")
+
+        if hasattr(item, key):
+            print("Override key: {}".format(key))
+
+        try:
+            setattr(item, key, value)
+        except AttributeError:
+            raise AttributeError(
+                "item with type '{}' cannot be setattr".format(type(item)))
