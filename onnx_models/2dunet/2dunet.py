@@ -117,7 +117,7 @@ class UNET2D(OnnxModel):
         input_name = sess.get_inputs()[0].name
         output_name = sess.get_outputs()[0].name
         datas = Model.make_batch([item.data for item in items])
-        rtn = sess.run([output_name], {input_name: datas})
+        res = sess.run([output_name], {input_name: datas})[0]
         for z in zip(items, res):
             Model.assignment(*z, 'final_result')
         return items

@@ -47,7 +47,7 @@ class SOLOFactory(OnnxModelFactory):
 
 
 class SOLOItem(Item):
-    def __init__(self, data,metas,img_id):
+    def __init__(self, data, metas, img_id):
         self.data = data
         self.metas = metas
         self.img_id = img_id
@@ -64,9 +64,6 @@ class SOLO(OnnxModel):
                             default='coco/',
                             type=str,
                             help='dataset path')
-        self.options.add_argument('--device',
-                            default='dtu',
-                            help='dtu, gpu, cpu')
         self.options.add_argument('--config',
                             help='test config file path')
         self.options.add_argument('--out_file',
@@ -421,37 +418,14 @@ class SOLO(OnnxModel):
         cate_preds, seg_preds, featmap = sess.run(output_names, {input_name: datas})
 
         assert len(items) == 1
-        item = items[0]
-        item.cate_preds = cate_preds
-        item.seg_preds = seg_preds
-        item.featmap = featmap
-        return item
+        items[0].cate_preds = cate_preds
+        items[0].seg_preds = seg_preds
+        items[0].featmap = featmap
 
-        # TODO : drop
-        # print("---datas.shape:",datas.shape)
-        # print("---cate_preds:",cate_preds.shape)
-        # print("---seg_preds:",seg_preds.shape)
-        # print("---featmap:",featmap.shape)
-        # ---datas.shape: (1, 3, 800, 1216)
-        # ---cate_preds: (3872, 80)
-        # ---seg_preds: (3872, 200, 304)
-        # ---featmap: (1, 1600, 200, 304)
-        # cate_preds = np.expand_dims(cate_preds, axis=0)
-        # seg_preds = np.expand_dims(seg_preds, axis=0)
-        # featmap = np.expand_dims(featmap, axis=0)
-        # return [cate_preds,seg_preds,featmap]
-
+        return items
 
     def postprocess(self, item):
         cate_preds, seg_preds, featmap = torch.from_numpy(item.cate_preds),torch.from_numpy(item.seg_preds),torch.from_numpy(item.featmap)
-
-        # TODO : drop
-        # print("cate_preds:",cate_preds.shape)
-        # print("seg_preds:",seg_preds.shape)
-        # print("featmap:",featmap.shape)
-        # cate_preds: (3872, 80)
-        # seg_preds: (3872, 200, 304)
-        # featmap: (1, 1600, 200, 304)
 
         # nms
         seg_single = self.__get_seg_single(
