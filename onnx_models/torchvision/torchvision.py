@@ -26,14 +26,14 @@ import numpy as np
 import os
 
 
-class MobileNetV1Factory(OnnxModelFactory):
-    model = "mobilenet_v1"
+class TorchVisionFactory(OnnxModelFactory):
+    model = "torchvision"
 
     def new_model():
-        return MobileNetV1()
+        return TorchVision()
 
 
-class MobileNetV1Item(Item):
+class TorchVisionItem(Item):
     def __init__(self, data, name, label):
         super().__init__()
         self.data = data
@@ -41,9 +41,9 @@ class MobileNetV1Item(Item):
         self.label = label
 
 
-class MobileNetV1(OnnxModel):
+class TorchVision(OnnxModel):
     def __init__(self):
-        super(MobileNetV1, self).__init__()
+        super(TorchVision, self).__init__()
         self.options = self.get_options()
         self.options.add_argument('--input_height',
                                   default=224,
@@ -54,7 +54,7 @@ class MobileNetV1(OnnxModel):
                                   type=int,
                                   help='model input image width')
         self.options.add_argument('--model_path',
-                                  default='mobilenet_v1-tf-op13-fp32-N.onnx',
+                                  default='mobilenet_v2-torchvision-op13-fp32-N.onnx',
                                   help='onnx path')
         self.options.add_argument("--data_path",
                                   help="dataset path")
@@ -62,9 +62,13 @@ class MobileNetV1(OnnxModel):
                                   default=1,
                                   type=int,
                                   help='batch size')
+        self.options.add_argument('--resize_size',
+                                  default=256,
+                                  type=int,
+                                  help='resize size in image preprocessing')
 
     def create_dataset(self):
-        data_path = os.path.join(self.options.get_data_path(), 'val_map.txt')
+        data_path = os.path.join(self.options.get_data_path(), 'val_map2.txt')
         return read_text(data_path)
 
     def load_data(self, path):
@@ -73,22 +77,25 @@ class MobileNetV1(OnnxModel):
         data = Image.open(img_file).convert("RGB")
         name = img_file.split("/")[-1]
         label = int(label)
-        return MobileNetV1Item(data, name, label)
+        return TorchVisionItem(data, name, label)
 
     def preprocess(self, item):
         width = int(self.options.get_input_width())
         height = int(self.options.get_input_height())
         input_size = (width, height)
-        max_size = max(width, height)
 
-        image = img_resize(item.data, 256 if max_size <= 256 else 342)
+        image = img_resize(item.data, self.options.get_resize_size())
         image = img_center_crop(image, input_size)
-        image_data = np.array(image, dtype='float32')
-        norm_image_data = (image_data / 255 - 0.5) * 2
-        norm_image_data = norm_image_data.reshape(
-            height, width, 3).astype('float32')
-        norm_image_data = np.array(norm_image_data).transpose(2, 0, 1)
+        image_data = np.array(image, dtype='float32').transpose(2, 0, 1)
 
+        mean_vec = np.array([0.485, 0.456, 0.406])
+        stddev_vec = np.array([0.229, 0.224, 0.225])
+        norm_image_data = np.zeros(image_data.shape).astype('float32')
+        for i in range(image_data.shape[0]):
+            norm_image_data[i, :, :] = (
+                image_data[i, :, :] / 255 - mean_vec[i]) / stddev_vec[i]
+        norm_image_data = norm_image_data.reshape(
+            3, height, width).astype('float32')
         item.data = norm_image_data
         return item
 
@@ -102,6 +109,7 @@ class MobileNetV1(OnnxModel):
 
     @staticmethod
     def arg_topk(array, k=5, axis=-1):
+        # TODO: common func
         topk_ind_unsort = np.argpartition(
             array, -k, axis=axis).take(indices=range(-k, 0), axis=axis)
         return topk_ind_unsort
@@ -116,6 +124,7 @@ class MobileNetV1(OnnxModel):
 
         indices = self.arg_topk(item.res)
         acc5 = (item.label[..., None] == indices).any(axis=-1).sum()
+
         return acc1, acc5
 
     def eval(self, collections):
