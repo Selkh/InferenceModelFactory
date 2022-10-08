@@ -33,7 +33,7 @@ def create_model_by_argument():
     options.add_argument('--frame', required=True)
     options.add_argument('--model', required=True)
 
-    args = options.parse_known_args()[0]
+    args = options.parse_partial_args()[0]
     name = concat_string(args.frame, args.model)
 
     all_models = ModelFactory.display_all()

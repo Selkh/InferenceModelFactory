@@ -19,6 +19,7 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
+import typing
 import ray
 from ray.data.context import DatasetContext
 from ray.data.datasource import Datasource, ReadTask
@@ -176,9 +177,46 @@ def wrap_transform(f):
         pipe.map_batches = MethodType(
             wrap_pipe_map_batches(pipe.map_batches, total_rows), pipe
         )
-        pipe.repeat = MethodType(wrap_transform, pipe)
+        pipe.repeat = MethodType(wrap_transform(pipe.repeat), pipe)
         return pipe
 
+    return wrapper
+
+
+def method_wrap(f):
+    def wrapper(self, *args, **kwargs):
+        dl = f(*args, **kwargs)
+        if isinstance(dl, list):
+            dl = dl
+        else:
+            dl = [dl]
+        rdl = []
+        for d in dl:
+            d.map = MethodType(wrap_map(d.map), d)
+            d.map_batches = MethodType(wrap_map_batches(d.map_batches), d)
+
+            for name in d.__dir__():
+                if not name.startswith("_"):
+                    method = getattr(d, name)
+                    if method.__name__ == 'wrapper':
+                        continue
+                    if hasattr(method, "__annotations__"):
+                        return_type = method.__annotations__["return"]
+                        if return_type == 'DatasetPipeline[T]':
+                            setattr(d, name, MethodType(
+                                wrap_transform(method), d))
+                        elif return_type in ['Dataset[T]', 'Dataset[U]'] \
+                                or isinstance(return_type, typing.GenericMeta):
+                            setattr(d, name, MethodType(
+                                method_wrap(method), d))
+                        else:
+                            continue
+            rdl.append(d)
+
+        if len(dl) == 1:
+            return rdl[0]
+        else:
+            return rdl
     return wrapper
 
 
@@ -204,6 +242,12 @@ def func_wrap(f):
                     if return_type == "DatasetPipeline[T]":
                         setattr(ds, name, MethodType(
                             wrap_transform(method), ds))
+                    elif return_type in ['Dataset[T]', 'Dataset[U]'] \
+                            or isinstance(return_type, typing.GenericMeta):
+                        setattr(ds, name, MethodType(
+                            method_wrap(method), ds))
+                    else:
+                        continue
 
         return ds
 
@@ -230,7 +274,6 @@ class DatasetDatasource(Datasource[T]):
         return [ReadTask(read_fn, metadata)]
 
 
-@func_wrap
 def read_dataset(dataset):
     def dataset_factory():
         if isinstance(dataset, Iterator):
@@ -247,21 +290,17 @@ def read_dataset(dataset):
     return ds
 
 
-@func_wrap
 def read_json(paths: Union[str, List[str]]):
     return ray.data.read_json(paths)
 
 
-@func_wrap
 def read_csv(paths: Union[str, List[str]]):
     return ray.data.read_csv(paths)
 
 
-@func_wrap
 def read_text(paths: Union[str, List[str]]):
     return ray.data.read_text(paths)
 
 
-@func_wrap
 def read_numpy(paths: Union[str, List[str]]):
     return ray.data.read_numpy(paths)

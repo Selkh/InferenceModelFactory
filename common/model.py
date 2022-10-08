@@ -49,7 +49,7 @@ class Model(ABC):
 
     def __init__(self):
         options = get_default_options()
-        known_args = options.parse_known_args()[0]
+        known_args = options.parse_partial_args()[0]
         choice = known_args.model
         subparsers = options.get_subparsers()
         if choice in subparsers.choices:
@@ -60,8 +60,21 @@ class Model(ABC):
 
         # add 'device' as default argument considering its general usage
         self._options.add_argument('--device', default='gcu', type=str,
-                                   help='on which device to execute model,'
-                                   'partial or full support cpu/gpu/gcu')
+                                   help='On which device to execute model,'
+                                   'partial or full support cpu/gpu/gcu, '
+                                   ' default as gcu if no specified')
+        self._options.add_argument('--step', default=-1, type=int,
+                                   help='A hidden option, no need to set by '
+                                   'default and go through the entire dataset '
+                                   'In special cases to perform only a few '
+                                   'steps, it can accept a positive integer')
+        self._options.add_argument('--epoch', default=1, type=int,
+                                   help='A hidden option, no need to set by '
+                                   'default and iterate over the dataset only '
+                                   'once. In special cases to perform pressure'
+                                   ' test, you can set a positive integer to '
+                                   'loop a finite number of times or `-1` to '
+                                   'loop infinitely')
 
     def set_options(self, options: Options):
         # setattr(self, 'options', options)
@@ -170,3 +183,14 @@ class Model(ABC):
         except AttributeError:
             raise AttributeError(
                 "item with type '{}' cannot be setattr".format(type(item)))
+
+    def get_batch_size(self, options):
+        if hasattr(options, '_batch_size'):
+            batch_size = options.get_batch_size()
+        elif hasattr(options, '_batchsize'):
+            batch_size = options.get_batchsize()
+        elif hasattr(options, '_bs'):
+            batch_size = options.get_bs()
+        else:
+            batch_size = 1
+        return batch_size

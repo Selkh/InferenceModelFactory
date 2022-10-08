@@ -18,8 +18,9 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 __all__ = ["get_default_options", "new_options",
-           "reset_options", "remove_options"]
+           "reset_options", "remove_options", "Options"]
 
+import sys as _sys
 import threading
 import argparse
 
@@ -56,13 +57,10 @@ class Options:
         return args
         # return self._parser.parse_known_args(args, namespace)
 
-    def parse_known_args(self, args=None, namespace=None):
-        if args is None:
-            import sys as _sys
-            args = _sys.argv[1:]
-        else:
-            args = list(args)
+    def __reorder(self, args):
+        assert isinstance(args, list)
 
+        model = None
         # Adjust order of parameters insert 'choice' to arg string
         args_iter = iter(args)
         for idx, arg in enumerate(args_iter):
@@ -77,6 +75,7 @@ class Options:
                     args.insert(0, '--model')
                     args.insert(1, model)
                     index = 4
+                # as format "--model=reset50"
                 elif arg.startswith('--model='):
                     model = arg[8:]
                     args.remove(arg)
@@ -91,7 +90,33 @@ class Options:
                     args.insert(0, '--frame')
                     args.insert(1, frame)
 
+        if not model:
+            return args, None
+
         args.insert(index, model)
+
+        return args, index
+
+    def parse_partial_args(self, args=None, namespace=None):
+        if args is None:
+            args = _sys.argv[1:]
+        else:
+            args = list(args)
+
+        args, index = self.__reorder(args)
+        if index:
+            args = args[:index]
+
+        return self._parser.parse_known_args(args, namespace)
+
+
+    def parse_known_args(self, args=None, namespace=None):
+        if args is None:
+            args = _sys.argv[1:]
+        else:
+            args = list(args)
+
+        args, _ = self.__reorder(args)
 
         return self._parser.parse_known_args(args, namespace)
 

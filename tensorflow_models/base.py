@@ -18,12 +18,13 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 from abc import abstractmethod
-from common.model_factory import *
-from common.session import *
+import tensorflow as tf
+import ray
+from common.model_factory import ModelFactory
 from common.model import Model
 from common.device import Device
-from common.options import Options
-import tensorflow_models.base_session
+from common.session import SESSION_FACTORY
+from tensorflow_models.base_session import TFSession
 
 
 class TFModelFactory(ModelFactory):
@@ -35,12 +36,18 @@ class TFModel(Model):
 
     @abstractmethod
     def construct_graph(self):
-        # This method must be overrided in concrete model implement, whether load from a freezed file or construct with Tensorflow API and thus output of this function could be either a 'Graph' or a 'Tensor'.
+        # This method must be overrided in concrete model
+        # implement, whether load from a freezed file or
+        # construct with Tensorflow API and thus output of
+        # this function could be either a 'Graph' or a 'Tensor'.
         pass
 
     @abstractmethod
-    def run_internal(self, session: BaseSession):
+    def run_internal(self, sess: TFSession):
         pass
+
+    def set_config(self, config):
+        return config
 
     def create_session(self):
         options = self.get_options()
@@ -52,8 +59,9 @@ class TFModel(Model):
             graph = graph_or_tensor.graph
         else:
             raise TypeError(
-                "Output of 'construct_graph' must be either 'Graph' or 'Tensor', but got {}".format(
-                    type(graph_or_tensor).__name__))
+                "Expected output of 'construct_graph' must be with type "
+                "of either 'tf.Graph' or 'tf.Tensor', but got error type: "
+                "'{}'".format(type(graph_or_tensor)))
 
         device_name = options.get_device() if hasattr(options,
                                                       'get_device') else 'gcu'
@@ -62,17 +70,45 @@ class TFModel(Model):
 
         target = options.get_target() if hasattr(options, 'get_target') else ''
 
-        config = tf.ConfigProto()
-        config.allow_soft_placement = options.get_allow_soft_placement() if hasattr(
-            options, 'get_allow_soft_placement') else True
-        config.log_soft_placement = options.get_log_soft_placement() if hasattr(
-            options, 'get_log_soft_placement') else False
+        config = self.set_config(tf.ConfigProto())
 
         sess = SESSION_FACTORY['tf-' + device.type](device.id, target=target,
                                                     graph=graph, config=config)
         return sess
 
     def run(self, *args, **kwargs):
+        self.sanity_check()
+        options = self.get_options()
+        batch_size = self.get_batch_size(options)  # default as 1
+
+        self.dataset = self.create_dataset()
+
+        import os
+        if os.environ.get('inference_models_internal_debug'):
+            # disable pipeline, serialize execution, only for internal debug
+            # hopefully never use
+            self.dataset = self.dataset.repartition(num_blocks=1)
+
+        pipe = self.dataset.window(blocks_per_window=1)
+        pipe = pipe.map(self.load_data)
+        pipe = pipe.map(self.preprocess)
+
         sess = self.create_session()
-        output = self.run_internal(sess, args, kwargs)
-        return output
+        ray_sess = ray.put(sess)
+
+        class BatchInfer:
+            def __init__(self, fn):
+                self.fn = fn
+
+            def __call__(self, items):
+                return self.fn(ray.get(ray_sess), items)
+
+        pipe = pipe.map_batches(
+            BatchInfer(self.run_internal),
+            compute="actors",
+            batch_size=batch_size,
+            drop_last=True)
+        pipe = pipe.map(self.postprocess)
+
+        collections = pipe.take()
+        return self.eval(collections)

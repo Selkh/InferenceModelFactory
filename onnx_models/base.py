@@ -18,6 +18,7 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 
+import os
 import time
 from abc import abstractmethod
 from functools import partial
@@ -284,17 +285,33 @@ class OnnxModel(Model):
         self.sanity_check()
         options = self.get_options()
 
-        batch_size = 1  # default as 1
-        if hasattr(options, '_batch_size'):
-            batch_size = options.get_batch_size()
-        elif hasattr(options, '_batchsize'):
-            batch_size = options.get_batchsize()
-        elif hasattr(options, '_bs'):
-            batch_size = options.get_bs()
-
         self.dataset = self.create_dataset()
+        count = self.dataset.count()
 
-        pipe = self.dataset.window(blocks_per_window=1)
+        batch_size = self.get_batch_size(options)  # default as 1
+
+        step = options.get_step()
+        epoch = options.get_epoch()
+        if step > 0:
+            if epoch > 1:
+                raise ValueError
+            assert step * batch_size <= count
+            self.dataset, _ = self.dataset.split_at_indices(
+                [step * batch_size])
+        else:
+            step = count // batch_size
+            if hasattr(options, 'get_drop_last') and options.get_drop_last():
+                self.dataset, _ = self.dataset.split_at_indices(
+                    [count - count % batch_size])
+
+        if os.environ.get('inference_models_internal_debug'):
+            # disable pipeline, serialize execution, only for internal debug
+            # hopefully never use
+            self.dataset = self.dataset.repartition(num_blocks=1)
+        else:
+            self.dataset = self.dataset.repartition(num_blocks=step)
+
+        pipe = self.dataset.window(blocks_per_window=8).repeat(epoch)
         pipe = pipe.map(self.load_data)
         pipe = pipe.map(self.preprocess)
 
@@ -311,11 +328,10 @@ class OnnxModel(Model):
         pipe = pipe.map_batches(
             BatchInfer(self.run_internal),
             compute="actors",
-            batch_size=batch_size,
-            drop_last=True)
+            batch_size=batch_size)
         pipe = pipe.map(self.postprocess)
 
-        collections = pipe.take()
+        collections = pipe.take_all(self.dataset.count() * epoch)
         return self.eval(collections)
 
     def create_session(self, device_name: str, model_path: str) -> BaseSession:

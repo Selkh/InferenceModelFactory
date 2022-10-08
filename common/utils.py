@@ -28,19 +28,31 @@ from importlib._bootstrap_external import PathFinder
 class PseudoModule(ModuleType):
     def __init__(self, name):
         self.name = name
+        self.__package__ = 'Pseudo.' + str(self.name)
+        self.__path__ = "Pseudo"
 
     def __getattribute__(self, key):
-        global count
-        if key in ["name",
-                   "__name__",
-                   "__loader__",
-                   "__package__",
-                   "__path__"]:
-            return super(PseudoModule, self).__getattribute__(key)
-        else:
-            sys.meta_path.pop()
-            raise ModuleNotFoundError(
-                f"No module named {self.name!r}", name=self.name)
+        try:
+            rtn = super().__getattribute__(key)
+            return rtn
+        except AttributeError:
+            raise AttributeError(
+                f"Module {self.name!r} is required but seems not be"
+                "installed, please check your environment")
+
+    def __setattr__(self, key, value):
+        super().__setattr__(key, value)
+        # global count
+        # if key in ["name",
+        #            "__name__",
+        #            "__loader__",
+        #            "__package__",
+        #            "__path__"]:
+        #     return super(PseudoModule, self).__getattribute__(key)
+        # else:
+        #     sys.meta_path.pop()
+        #     raise ModuleNotFoundError(
+        #         f"No module named {self.name!r}", name=self.name)
 
 
 class PseudoLoader(Loader):
@@ -49,6 +61,7 @@ class PseudoLoader(Loader):
         return module
 
     def exec_module(self, module):
+        # raise ModuleNotFoundError(f"No module named {module.name!r}")
         pass
 
 
@@ -80,19 +93,27 @@ class PseudoFinder(PathFinder):
         if fname and fno and fline:
             if fname.startswith("/usr"):  # need by system lib
                 return None
-            print(
-                "\nWarning: No module named {}, ignore during register but "
-                "will raise error if called.\nFirst required by\n"
-                "  File '{}', line {}, in <module>\n    {}\n".format(
-                    fullname, fname, fno, fline)
-            )
+
+            if os.environ.get('inference_models_internal_debug'):
+                print(
+                    "\nWarning: No module named {}, ignore during initial but"
+                    " will raise error if called.\nFirst required by\n"
+                    "  File '{}', line {}, in <module>\n    {}\n".format(
+                        fullname, fname, fno, fline)
+                )
 
         if not parent:
             # module in sys path
             return ModuleSpec(fullname, PseudoLoader())
         else:
-            # suppose to error file import
-            return super().find_spec(fullname, path, target)
+            try:
+                parent_module = sys.modules.get(parent)
+                if parent_module.__path__ == 'Pseudo':
+                    # PseudoModule
+                    return ModuleSpec(fullname, PseudoLoader())
+            except Exception:
+                # suppose to error file import
+                return super().find_spec(fullname, path, target)
 
 
 def pseudo_hook(path):
