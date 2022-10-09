@@ -119,6 +119,7 @@ class Model(ABC):
 
     @abstractmethod
     def eval(self, collections):
+        """The expected return value is a json dictionary"""
         pass
 
     def __check_argument(self, func, allowed_number):

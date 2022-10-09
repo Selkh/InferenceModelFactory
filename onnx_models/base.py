@@ -294,8 +294,11 @@ class OnnxModel(Model):
         epoch = options.get_epoch()
         if step > 0:
             if epoch > 1:
-                raise ValueError
-            assert step * batch_size <= count
+                raise ValueError("Multiple epochs not supported when only tend"
+                                 " to perform several step not full dataset")
+            assert step * batch_size <= count, \
+                'Dataset has {} items, not enough for specidied ' \
+                'step {} and batch size {}'.format(count, step, batch_size)
             self.dataset, _ = self.dataset.split_at_indices(
                 [step * batch_size])
         else:
