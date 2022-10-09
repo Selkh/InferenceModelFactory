@@ -21,8 +21,8 @@ from onnx_models.base import OnnxModelFactory, OnnxModel
 from common.dataset import read_csv, Item
 from common.model import Model
 import numpy as np
-import os
 import cv2
+import os
 
 
 class UNET2DFactory(OnnxModelFactory):
@@ -43,46 +43,40 @@ class UNET2D(OnnxModel):
         super(UNET2D, self).__init__()
         self.options = self.get_options()
         self.options.add_argument("--model_path",
-                            default="./model/2dunet-tf-op13-fp32-N.onnx",
-                            help="Onnx path")
+                                  default="./model/2dunet-tf-op13-fp32-N.onnx",
+                                  help="Onnx path")
         self.options.add_argument("--data_path",
-                            default="./dagm2007",
-                            type=str,
-                            help="Dataset path.")
-        self.options.add_argument("--device",
-                            default="dtu",
-                            help="Choose a provider backend. e.g. dtu, gpu, cpu.")
+                                  default="./dagm2007",
+                                  type=str,
+                                  help="Dataset path.")
         self.options.add_argument("--batch_size",
-                            default=1,
-                            type=int,
-                            help="Batch size.")
+                                  default=1,
+                                  type=int,
+                                  help="Batch size.")
         self.options.add_argument("--input_height",
-                            default=512,
-                            type=int,
-                            help="Model input image height.")
+                                  default=512,
+                                  type=int,
+                                  help="Model input image height.")
         self.options.add_argument("--input_width",
-                            default=512,
-                            type=int,
-                            help="Model input image width.")
-        self.options.add_argument("--class_id",
-                            default=1,
-                            choices=range(1, 11),
-                            type=int,
-                            required=False,
-                            help="Class ID used for benchmark.")
+                                  default=512,
+                                  type=int,
+                                  help="Model input image width.")
         self.options.add_argument("--iou_thres",
-                            nargs="+",
-                            type=float,
-                            default=[0.05, 0.125, 0.25, 0.5, 0.75, 0.85, 0.95, 0.99],
-                            help="IoU threshold for eval.")
+                                  nargs="+",
+                                  type=float,
+                                  default=[0.5, 0.75, 0.85, 0.95, 0.99],
+                                  help="IoU threshold for eval.")
 
     def create_dataset(self):
-        csv_path = os.path.join(self.options.get_data_path(), "private/Class1/test_list.csv")
+        csv_path = os.path.join(
+            self.options.get_data_path(), "private/Class1/test_list.csv")
         return read_csv(csv_path)
 
     def load_data(self, path):
-        image_dir = os.path.join(self.options.get_data_path(), "private/Class1/Test")
-        mask_image_dir = os.path.join(self.options.get_data_path(), "private/Class1/Test/Label")
+        image_dir = os.path.join(
+            self.options.get_data_path(), "private/Class1/Test")
+        mask_image_dir = os.path.join(
+            self.options.get_data_path(), "private/Class1/Test/Label")
 
         input_image_name, image_mask_name = path[0], path[1]
         image_filepath = os.path.join(image_dir, input_image_name)
@@ -97,10 +91,12 @@ class UNET2D(OnnxModel):
 
     def preprocess(self, item):
         def process(image, normalize_data_method):
-            if (image is None) and (normalize_data_method=="zero_one"):
-                image = np.zeros((self.options.get_input_height(), self.options.get_input_width(), 1), dtype=np.float32)
+            if (image is None) and (normalize_data_method == "zero_one"):
+                image = np.zeros((self.options.get_input_height(
+                ), self.options.get_input_width(), 1), dtype=np.float32)
             else:
-                image = cv2.resize(image, (self.options.get_input_height(), self.options.get_input_width())).astype(np.float32)
+                image = cv2.resize(image, (self.options.get_input_height(
+                ), self.options.get_input_width())).astype(np.float32)
                 if normalize_data_method == "zero_centered":
                     image = image / 127.5 - 1
                 elif normalize_data_method == "zero_one":
@@ -108,8 +104,8 @@ class UNET2D(OnnxModel):
                 image = np.expand_dims(image, axis=2)
             return image
 
-        item.data = process(item.data,normalize_data_method="zero_centered")
-        item.mask = process(item.mask,normalize_data_method="zero_one")
+        item.data = process(item.data, normalize_data_method="zero_centered")
+        item.mask = process(item.mask, normalize_data_method="zero_one")
 
         return item
 
@@ -119,36 +115,31 @@ class UNET2D(OnnxModel):
         datas = Model.make_batch([item.data for item in items])
         res = sess.run([output_name], {input_name: datas})[0]
         for z in zip(items, res):
-            Model.assignment(*z, 'final_result')
+            Model.assignment(*z, 'res')
         return items
 
     def postprocess(self, item):
-        return item
+        def iou_score(pred, label, threshold, eps=1e-5):
+            label = (label > threshold).astype(float)
+            pred = (pred > threshold).astype(float)
+            intersection = label * pred
+            intersection = np.sum(intersection, axis=(0, 1))
+            numerator = 2.0 * intersection + eps
+            divisor = np.sum(label, axis=(0, 1)) + \
+                np.sum(pred, axis=(0, 1)) + eps
+            return np.mean(numerator / divisor)
+
+        iou = []
+        for thres in self.options.get_iou_thres():
+            iou.append(iou_score(item.res, item.mask, threshold=thres))
+        return iou
 
     def eval(self, collections):
         print("2dunet eval")
-        iou_results = []
-        for item in collections:
-            y_pred = np.expand_dims(item.final_result[0], axis=0)
-            y_true = np.expand_dims(item.mask, axis=0)
-
-            def iou_score(pred, label, threshold, eps=1e-5):
-                label = (label > threshold).astype(float)
-                pred = (pred > threshold).astype(float)
-                intersection = label * pred
-                intersection = np.sum(intersection, axis=(1, 2, 3))
-                numerator = 2.0 * intersection + eps
-                divisor = np.sum(label, axis=(1, 2, 3)) + np.sum(pred, axis=(1, 2, 3)) + eps
-                return np.mean(numerator / divisor)
-
-            temp = []
-            for t in self.options.get_iou_thres():
-                temp.append(iou_score(y_pred, y_true, threshold=t))
-            iou_results.append(temp)
-        iou_results = list(np.mean(np.array(iou_results),axis=0))
-
+        iou_results = list(np.mean(np.array(collections), axis=0))
         eval_results = {}
         for idx, thres in enumerate(self.options.get_iou_thres()):
-            eval_results["IOU-{}".format(thres)] = iou_results[idx]
-        print("eval_results:",eval_results)
+            eval_results["IOU-{}".format(thres)
+                         ] = format(iou_results[idx], ".3%")
+        print("eval_results:", eval_results)
         return eval_results

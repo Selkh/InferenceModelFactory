@@ -22,8 +22,7 @@ from monitor import Monitor
 
 model = create_model_by_argument()
 monitor = Monitor()
-
-model1 = create_model_by_name('onnx-resnet50')
-
 monitor.Execute(model)
-monitor.Execute(model1)
+
+# model1 = create_model_by_name('onnx-resnet50')
+# monitor.Execute(model1)
