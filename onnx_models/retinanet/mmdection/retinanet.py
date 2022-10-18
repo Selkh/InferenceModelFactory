@@ -232,9 +232,9 @@ class RetinaNet(OnnxModel):
             
             for box, score, label in zip(dets, scores, labels):
                 if score > self.options.get_threshold():
-                    f=open('fix_log.txt',"a")
-                    f.write(str(box) + '  ' + str(score) + '  ' + str(label) + '\n')
-                    f.close
+                    # f=open('fix_log.txt',"a")
+                    # f.write(str(box) + '  ' + str(score) + '  ' + str(label) + '\n')
+                    # f.close
                     xmin = float(box[0])
                     ymin = float(box[1])
                     xmax = float(box[2])

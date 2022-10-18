@@ -112,7 +112,7 @@ class CenterNet(OnnxModel):
     def create_dataset(self):
         self.anno = COCO(
             '{}/annotations/instances_val2017.json'.format(self.options.get_data_path()))
-        return read_dataset(self.anno.getImgIds([:5])
+        return read_dataset(self.anno.getImgIds())
 
     def load_data(self, img_id):
         img_info = self.anno.loadImgs([img_id])[0]
