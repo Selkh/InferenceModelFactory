@@ -19,7 +19,7 @@ limitations under the License.
 from abc import ABC, abstractmethod
 from .device import Device
 from .options import Options, get_default_options
-
+import torch
 
 class ModelNotSetOptionException(Exception):
     def __init__(self):
@@ -157,9 +157,13 @@ class Model(ABC):
         import numpy as np
 
         type_name = type(batch[0]).__name__
+
         if type_name == "ndarray":
             # numpy array
             return np.stack(batch, 0)
+        elif type_name == "Tensor":
+            # tensor type
+            return torch.stack(batch, 0) 
         elif type_name in ["int", "float", "str"]:
             # scalar type
             return np.array(batch)
