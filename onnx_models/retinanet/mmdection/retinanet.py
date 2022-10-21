@@ -111,9 +111,15 @@ class RetinaNet(OnnxModel):
     def create_dataset(self):
         self.anno = COCO(
             '{}/annotations/instances_val2017.json'.format(self.options.get_data_path()))
-        return read_dataset(self.anno.getImgIds())
+
+        
+
+        return read_dataset(self.anno.getImgIds()[:5])
 
     def load_data(self, img_id):
+        f=open('fix_log.txt',"a")
+        f.write(str(img_id) + '\n')
+        f.close
         img_info = self.anno.loadImgs([img_id])[0]
         img_name = '{}/val2017/{}'.format(
             self.options.get_data_path(), img_info['file_name'])

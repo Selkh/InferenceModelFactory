@@ -327,9 +327,7 @@ class CenterNet(OnnxModel):
                 dets.copy(), item.metas['ori_shape'][0], item.metas['ori_shape'][1], num_classes)
             for j in range(1, num_classes + 1):
                 dets[0][j] = np.array(dets[0][j], dtype=np.float32).reshape(-1, 5)
-            f=open('fix_log.txt',"a")
-            f.write(str(dets[0]) + '\n')
-            f.close
+        
             if dets[0] is not None:
                 for cls_ind in dets[0]:
                     for box in dets[0][cls_ind]:
