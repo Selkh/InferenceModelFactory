@@ -164,8 +164,8 @@ class Conformer(OnnxModel):
         wer_nums = []
         wer_denoms = []
         for item in collections:
-            wer_nums.append(item[0]['wer_nums'])
-            wer_denoms.append(item[0]['wer_denoms'])
+            wer_nums.append(item[0]['wer_num'])
+            wer_denoms.append(item[0]['wer_denom'])
         wer_score = sum(wer_nums) / sum(wer_denoms)
         print("The inference done successful!")
         print("WER= {}".format(wer_score))
