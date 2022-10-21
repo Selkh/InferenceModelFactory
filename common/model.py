@@ -161,9 +161,6 @@ class Model(ABC):
         if type_name == "ndarray":
             # numpy array
             return np.stack(batch, 0)
-        elif type_name == "Tensor":
-            # tensor type
-            return torch.stack(batch, 0) 
         elif type_name in ["int", "float", "str"]:
             # scalar type
             return np.array(batch)
