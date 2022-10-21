@@ -43,6 +43,7 @@ class ConformerItem(Item):
         self.data =  [processed_signal, processed_signal_len, metas[0], metas[1]]
 
 
+
 class NemoWrapper:
     def __init__(self, restore_path):
         self.restore_path = restore_path
@@ -76,6 +77,11 @@ class Conformer(OnnxModel):
                                   type=bool,
                                   default=False, 
                                   help="use the padding mode when use dtu")
+        self.options.add_argument("--batch_size", 
+                                  type=int,
+                                  default=10, 
+                                  help="batch_size")
+
 
 
     def create_dataset(self):
@@ -107,10 +113,46 @@ class Conformer(OnnxModel):
         convert tensor to numpy
         """
         return tensor.detach().numpy() if tensor.requires_grad else tensor.numpy()
+    
+    def make_batch(self, batch):
+
+        import numpy as np
+
+        type_name = type(batch[0]).__name__
+
+        if type_name == "ndarray":
+            # numpy array
+            return np.stack(batch, 0)
+        elif type_name == 'Tensor':
+             # tensor type
+            if batch[0].size():
+                batch_list = []
+                max_size = 0 
+                for i in batch:
+                    if i.size(0) > max_size:
+                        max_size = i.size(0)
+                for i in range(len(batch)):
+                    length = batch[i].size(0)
+                    zero_padding = torch.zeros([max_size - length])
+                    batch_list.append(torch.cat((batch[i], zero_padding), 0))  
+                return torch.stack(tuple(batch_list), 0) 
+            
+            
+            return torch.stack(batch, 0) 
+        elif type_name in ["int", "float", "str"]:
+            # scalar type
+            return np.array(batch)
+        elif type_name == "list":
+            return [self.make_batch(b) for b in zip(*batch)]
+        elif type_name == "dict":
+            return {key: self.make_batch([b[key] for b in batch])
+                    for key in batch[0]}
+        else:
+            raise TypeError("Dataset has data with unsupported type")
 
     def run_internal(self, sess, items):
            
-        datas = Model.make_batch([item.data for item in items])
+        datas = self.make_batch([item.data for item in items])
 
         processed_signal, processed_signal_len = self.model.nemo.preprocessor(
             input_signal=datas[0],
@@ -128,31 +170,34 @@ class Conformer(OnnxModel):
                 processed_signal_len
             )
 
-        
-        items[0].output = sess.run(None, ort_inputs)
-        items[0].targets = datas[2]
-        items[0].targets_lengths = datas[3]
-        
+        res = sess.run(None, ort_inputs)
+
+        ologits = res
+        alogits = np.asarray(ologits)
+        logits = torch.from_numpy(alogits[0])
+        greedy_predictions = logits.argmax(dim=-1, keepdim=False)
+
+        for z in zip(items, greedy_predictions):
+            Model.assignment(*z, 'greedy_predictions')
+
         return items
 
 
     def postprocess(self, item):
         results = []
-       
-        ologits = item.output
-        alogits = np.asarray(ologits)
-        logits = torch.from_numpy(alogits[0])
-        greedy_predictions = logits.argmax(dim=-1, keepdim=False)
 
         #compute wer score
-        targets = item.targets
-        targets_lengths = item.targets_lengths
+        greedy_predictions = item.greedy_predictions.unsqueeze(0)
+
+        targets = item.data[2].unsqueeze(0)
+        targets_lengths = item.data[3].unsqueeze(0)
+
         self.model.nemo._wer.update(greedy_predictions, targets, targets_lengths)
         _, wer_num, wer_denom = self.model.nemo._wer.compute()
 
         result = {
             'wer_num': self.to_numpy(wer_num),
-            'wer_denom': self.to_numpy(wer_denom)
+            'wer_denom': self.to_numpy(wer_denom),
         }
         
         results.append(result)
@@ -160,7 +205,6 @@ class Conformer(OnnxModel):
         return results
 
     def eval(self, collections):
-        print(collections)
         wer_nums = []
         wer_denoms = []
         for item in collections:
