@@ -17,20 +17,13 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from onnx_models.base import OnnxModelFactory, OnnxModel
+import os
+from PIL import Image
+from onnx_models.base import OnnxModel
 from common.dataset import read_text, Item
 from common.model import Model
-from PIL import Image
 from common.data_process.img_preprocess import img_resize, img_center_crop
 import numpy as np
-import os
-
-
-class TorchVisionFactory(OnnxModelFactory):
-    model = "torchvision"
-
-    def new_model():
-        return TorchVision()
 
 
 class TorchVisionItem(Item):
@@ -40,8 +33,7 @@ class TorchVisionItem(Item):
         self.name = name
         self.label = label
 
-
-class TorchVision(OnnxModel):
+class TorchVisionModel(OnnxModel):
     def __init__(self):
         super(TorchVision, self).__init__()
         self.options = self.get_options()
@@ -68,7 +60,7 @@ class TorchVision(OnnxModel):
                                   help='resize size in image preprocessing')
 
     def create_dataset(self):
-        data_path = os.path.join(self.options.get_data_path(), 'val_map2.txt')
+        data_path = os.path.join(self.options.get_data_path(), 'val_map.txt')
         return read_text(data_path)
 
     def load_data(self, path):
