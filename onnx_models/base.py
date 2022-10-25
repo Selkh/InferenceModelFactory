@@ -27,7 +27,7 @@ from common.session import BaseSession, SESSION_FACTORY, register_session
 from common.model import Model
 from common.device import Device
 import onnxruntime as rt
-
+rt.set_default_logger_severity(3)
 import ray
 
 
@@ -315,6 +315,7 @@ class OnnxModel(Model):
             self.dataset = self.dataset.repartition(num_blocks=step)
 
         pipe = self.dataset.window(blocks_per_window=8).repeat(epoch)
+        
         pipe = pipe.map(self.load_data)
         pipe = pipe.map(self.preprocess)
 

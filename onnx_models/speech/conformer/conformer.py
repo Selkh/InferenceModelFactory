@@ -39,8 +39,11 @@ class ConformerFactory(OnnxModelFactory):
 
 
 class ConformerItem(Item):
-    def __init__(self, processed_signal, processed_signal_len, metas):
-        self.data =  [processed_signal, processed_signal_len, metas[0], metas[1]]
+    def __init__(self, processed_signal, processed_signal_len, target, target_length):
+        self.processed_signal = processed_signal
+        self.processed_signal_len = processed_signal_len
+        self.target = target
+        self.target_length = target_length
 
 
 
@@ -81,6 +84,10 @@ class Conformer(OnnxModel):
                                   type=int,
                                   default=10, 
                                   help="batch_size")
+        self.options.add_argument("--max_padding", 
+                                  type=int,
+                                  default=99200, 
+                                  help="batch_size")
 
 
 
@@ -98,12 +105,33 @@ class Conformer(OnnxModel):
         return read_dataset(dataset)
 
     def load_data(self, data):
-        
-        metas = (data[2],data[3])
 
-        return ConformerItem(data[0], data[1], metas)
+        return ConformerItem(data[0], data[1], data[2], data[3])
+    
+    def _padding(self, item):
+
+        x = item.processed_signal
+        length = x.size(0)
+        zero_padding = torch.zeros([self.options.get_max_padding() - length])
+        item.processed_signal = (torch.cat((x, zero_padding), 0)) 
+         
+
 
     def preprocess(self, item):
+
+        self._padding(item)
+        processed_signal, processed_signal_len = self.model.nemo.preprocessor(
+            input_signal=item.processed_signal.unsqueeze(0),
+            length=item.processed_signal_len.unsqueeze(0),
+        )
+
+        if self.options.get_device() == 'dtu' and self.options.get_padding_mode():
+            padding_len = 1000 - processed_signal.shape[2]
+            processed_signal = torch.nn.functional.pad(processed_signal,(0,padding_len), "constant", 0)
+        
+        item.processed_signal = processed_signal.squeeze(0)
+        item.processed_signal_len = processed_signal_len.squeeze(0)
+        
 
         return item
 
@@ -120,48 +148,24 @@ class Conformer(OnnxModel):
 
         type_name = type(batch[0]).__name__
 
-        if type_name == "ndarray":
-            # numpy array
-            return np.stack(batch, 0)
-        elif type_name == 'Tensor':
+        
+        if type_name == 'Tensor':
              # tensor type
-            if batch[0].size():
-                batch_list = []
-                max_size = 0 
-                for i in batch:
-                    if i.size(0) > max_size:
-                        max_size = i.size(0)
-                for i in range(len(batch)):
-                    length = batch[i].size(0)
-                    zero_padding = torch.zeros([max_size - length])
-                    batch_list.append(torch.cat((batch[i], zero_padding), 0))  
-                return torch.stack(tuple(batch_list), 0) 
-            
             
             return torch.stack(batch, 0) 
-        elif type_name in ["int", "float", "str"]:
-            # scalar type
-            return np.array(batch)
         elif type_name == "list":
+            # for b in zip(*batch):
+            #     print(b, type(b), len(b))
             return [self.make_batch(b) for b in zip(*batch)]
-        elif type_name == "dict":
-            return {key: self.make_batch([b[key] for b in batch])
-                    for key in batch[0]}
         else:
             raise TypeError("Dataset has data with unsupported type")
 
     def run_internal(self, sess, items):
            
-        datas = self.make_batch([item.data for item in items])
+        datas = self.make_batch([[item.processed_signal, item.processed_signal_len] for item in items])
 
-        processed_signal, processed_signal_len = self.model.nemo.preprocessor(
-            input_signal=datas[0],
-            length=datas[1],
-        )
-
-        if self.options.get_device() == 'dtu' and self.options.get_.padding_mode():
-            padding_len = 1000 - processed_signal.shape[2]
-            processed_signal = torch.nn.functional.pad(processed_signal,(0,padding_len), "constant", 0)
+        processed_signal = datas[0]
+        processed_signal_len = datas[1]
 
         ort_inputs = {sess.get_inputs()[0].name: self.to_numpy(processed_signal)}
 
@@ -172,13 +176,8 @@ class Conformer(OnnxModel):
 
         res = sess.run(None, ort_inputs)
 
-        ologits = res
-        alogits = np.asarray(ologits)
-        logits = torch.from_numpy(alogits[0])
-        greedy_predictions = logits.argmax(dim=-1, keepdim=False)
-
-        for z in zip(items, greedy_predictions):
-            Model.assignment(*z, 'greedy_predictions')
+        for z in zip(items, res[0]):
+            Model.assignment(*z, 'result')
 
         return items
 
@@ -186,11 +185,17 @@ class Conformer(OnnxModel):
     def postprocess(self, item):
         results = []
 
-        #compute wer score
-        greedy_predictions = item.greedy_predictions.unsqueeze(0)
 
-        targets = item.data[2].unsqueeze(0)
-        targets_lengths = item.data[3].unsqueeze(0)
+        res = item.result
+        ologits = [res]
+        alogits = np.asarray(ologits)
+        logits = torch.from_numpy(alogits[0])
+        greedy_predictions = logits.argmax(dim=-1, keepdim=False).unsqueeze(0)
+        
+        #compute wer score
+
+        targets = item.target.unsqueeze(0)
+        targets_lengths = item.target_length.unsqueeze(0)
 
         self.model.nemo._wer.update(greedy_predictions, targets, targets_lengths)
         _, wer_num, wer_denom = self.model.nemo._wer.compute()
