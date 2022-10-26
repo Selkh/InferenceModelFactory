@@ -93,6 +93,10 @@ class MaskRcnn(OnnxModel):
                                   type=int,
                                   default=80,
                                   help='class number')
+        self.options.add_argument('--post_rescale',
+                                  type=bool,
+                                  default=False,
+                                  help='post')
 
         # TODO : args reset
         """
@@ -119,7 +123,6 @@ class MaskRcnn(OnnxModel):
             [w_scale, h_scale, w_scale, h_scale], dtype=np.float32)
 
         item.data = resized_img
-        item.metas['ori_shape'] = img.shape
         item.metas['img_shape'] = resized_img.shape
         # in case that there is no padding
         item.metas['pad_shape'] = resized_img.shape
@@ -317,33 +320,35 @@ class MaskRcnn(OnnxModel):
     def postprocess(self, item):
         batch_size = 1
 
-        dets = []
+        de = []
+        post_rescale = self.options.get_post_rescale()
+        num_classes = self.options.get_num_classes()
         for i in range(batch_size):
             dets, labels = item.batch_dets[i], item.batch_labels[i]
-            if self.post_rescale:
+            if post_rescale:
                 scale_factor = item.metas[i]['scale_factor']
                 dets[:, :4] /= scale_factor
             if dets.shape[0] == 0:
                 dets_results = [np.zeros((0, 5), dtype=np.float32)
-                                for _ in range(self.num_classes)]
+                                for _ in range(num_classes)]
             else:
                 dets_results = [dets[labels == cls_id, :]
-                                for cls_id in range(self.num_classes)]
+                                for cls_id in range(num_classes)]
             if item.batch_masks is not None:
-                img_h, img_w = item.metas[i]['img_shape'][:2]
-                ori_h, ori_w = item.metas[i]['ori_shape'][:2]
+                img_h, img_w = item.metas['img_shape'][:2]
+                ori_h, ori_w = item.metas['ori_shape'][:2]
                 mask_results = []
-                for cls_id in range(self.num_classes):
+                for cls_id in range(num_classes):
                     masks = item.batch_masks[i][labels == cls_id, :]
                     if masks.size == 0:
                         cls_mask_results = masks
                     else:
                         cls_mask_results = []
                         for mask in masks:
-                            if self.post_rescale:
+                            if post_rescale:
                                 cls_mask = cv2.resize(
                                     mask[:img_h, :img_w], (ori_w, ori_h))
-                                cls_mask = cls_mask > self.mask_binary_thr
+                                cls_mask = cls_mask > 0.5
                                 cls_mask = cls_mask.astype(np.bool_)
                                 cls_mask = np.expand_dims(cls_mask, axis=0)
                             else:
@@ -353,10 +358,10 @@ class MaskRcnn(OnnxModel):
                             cls_mask_results, axis=0)
                     mask_results.append(cls_mask_results)
                 dets_results = (dets_results, mask_results)
-            dets.append(dets_results)
+            de.append(dets_results)
 
         results = []
-        for det in dets:
+        for det in de:
             if isinstance(det, tuple):
                 all_bboxes, all_masks = det
             else:
