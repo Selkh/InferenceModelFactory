@@ -19,7 +19,7 @@ limitations under the License.
 from abc import ABC, abstractmethod
 from .device import Device
 from .options import Options, get_default_options
-import torch
+
 
 class ModelNotSetOptionException(Exception):
     def __init__(self):
