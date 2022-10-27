@@ -49,6 +49,9 @@ class MMdetectionModel(OnnxModel):
     def __init__(self):
         super(MMdetectionModel, self).__init__()
         self.options = self.get_options()
+        self.options.add_argument("--model_path",
+                            default="model/solo_r50_1x-mmdet-op13-fp32.onnx",
+                            help="Onnx path")
         self.options.add_argument('--data_path',
                                   default='./coco',
                                   type=str,
@@ -191,7 +194,7 @@ class MMdetectionModel(OnnxModel):
     def create_dataset(self):
         self.anno = COCO(
             '{}/annotations/instances_val2017.json'.format(self.options.get_data_path()))
-        return read_dataset(self.anno.getImgIds()[:5])
+        return read_dataset(self.anno.getImgIds())
 
     def load_data(self, img_id):
         img_info = self.anno.loadImgs([img_id])[0]
