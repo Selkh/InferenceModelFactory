@@ -17,10 +17,9 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from onnx_models.base import OnnxModelFactory, OnnxModel
-from common.dataset import read_dataset, Item
+from onnx_models.object_detection_segmentation.mmdetection.mmdetection import MMdetectionModel
+from onnx_models.base import OnnxModelFactory
 from common.model import Model
-import cv2
 import numpy as np
 import torch
 import torch.nn.functional as F
@@ -39,154 +38,27 @@ test_cfg = dict(
     max_per_img=100)
 
 
-class SOLOFactory(OnnxModelFactory):
-    model = "solo"
+class SOLOMMDFactory(OnnxModelFactory):
+    model = "solo-mmd"
 
     def new_model():
-        return SOLO()
+        return SOLOMMD()
 
 
-class SOLOItem(Item):
-    def __init__(self, data, metas, img_id):
-        self.data = data
-        self.metas = metas
-        self.img_id = img_id
 
-
-class SOLO(OnnxModel):
+class SOLOMMD(MMdetectionModel):
     def __init__(self):
-        super(SOLO, self).__init__()
+        super(SOLOMMD, self).__init__()
         self.options = self.get_options()
         self.options.add_argument("--model_path",
                             default="model/solo_r50_1x-mmdet-op13-fp32.onnx",
                             help="Onnx path")
-        self.options.add_argument('--data_path',
-                            default='coco/',
-                            type=str,
-                            help='dataset path')
         self.options.add_argument('--config',
                             help='test config file path')
         self.options.add_argument('--out_file',
                             default="results_solo_segm.json",
                             help='output result file')
-        self.options.add_argument('--to_rgb',
-                            type=bool,
-                            default=True,
-                            help='whether convert image to rgb channel')
-        self.options.add_argument('--keep_ratio',
-                            type=bool,
-                            default=True,
-                            help='whether keep ratio when resize image')
-        self.options.add_argument('--size_divisor',
-                            type=int,
-                            default=32,
-                            help='padding size divisor')
-        self.options.add_argument('--num_classes',
-                            type=int,
-                            default=80,
-                            help='class number')
-        self.options.add_argument('--batch_size',
-                            type=int,
-                            default=1,
-                            help='batch size')
 
-
-    def __imresize(self, item, scale = (800, 1333)):
-        """
-        Resize image
-        """
-        img = item.data
-        h, w = img.shape[:2]
-        new_h, new_w = scale
-        resized_img = cv2.resize(
-            img, (new_w, new_h), interpolation=cv2.INTER_LINEAR)
-        w_scale = scale[1] / w
-        h_scale = scale[0] / h
-        scale_factor = np.array(
-            [w_scale, h_scale, w_scale, h_scale], dtype=np.float32)
-
-        item.data = resized_img
-        item.metas['ori_shape'] = img.shape
-        item.metas['img_shape'] = resized_img.shape
-        # in case that there is no padding
-        item.metas['pad_shape'] = resized_img.shape
-        item.metas['scale_factor'] = scale_factor
-        item.metas['keep_ratio'] = self.options.get_keep_ratio()
-
-
-    def __imrescale(self, item, scale = (800, 1333)):
-        """
-        Rescale image
-        """
-        img = item.data
-        h, w = img.shape[:2]
-        max_long_edge = max(scale)
-        max_short_edge = min(scale)
-        scale_factor = min(max_long_edge / max(h, w),
-                           max_short_edge / min(h, w))
-        new_size = int(w * float(scale_factor) +
-                       0.5), int(h * float(scale_factor) + 0.5)
-        resized_img = cv2.resize(img, new_size, interpolation=cv2.INTER_LINEAR)
-        new_h, new_w = resized_img.shape[:2]
-        w_scale = new_w / w
-        h_scale = new_h / h
-        scale_factor = np.array(
-            [w_scale, h_scale, w_scale, h_scale], dtype=np.float32)
-
-        item.data = resized_img
-        item.metas['img_shape'] = resized_img.shape
-        # in case that there is no padding
-        item.metas['pad_shape'] = resized_img.shape
-        item.metas['scale_factor'] = scale_factor
-        item.metas['keep_ratio'] = self.options.get_keep_ratio()
-
-
-    def __normalize(self, item):
-        """
-        Normalize image
-        """
-        img = item.data
-        img = img.copy().astype(np.float32)
-        mean = np.float64(np.array((123.675, 116.28, 103.53), dtype=np.float32).reshape(1, -1))
-        stdinv = 1 / np.float64(np.array((58.395, 57.12, 57.375), dtype=np.float32).reshape(1, -1))
-        if self.options.get_to_rgb():
-            cv2.cvtColor(img, cv2.COLOR_BGR2RGB, img)  # inplace
-        cv2.subtract(img, mean, img)  # inplace
-        cv2.multiply(img, stdinv, img)  # inplace
-        item.data = img
-
-
-    def __pad(self, item, pad_val=0):
-        """
-        Padding image
-        """
-        img = item.data
-        pad_h = int(
-            np.ceil(img.shape[0] / self.options.get_size_divisor())) * self.options.get_size_divisor()
-        pad_w = int(
-            np.ceil(img.shape[1] / self.options.get_size_divisor())) * self.options.get_size_divisor()
-        padding = (0, 0, pad_w - img.shape[1], pad_h - img.shape[0])
-        img = cv2.copyMakeBorder(img,
-                                 padding[1],
-                                 padding[3],
-                                 padding[0],
-                                 padding[2],
-                                 cv2.BORDER_CONSTANT,
-                                 value=pad_val)
-        item.data = img
-        item.metas['pad_shape'] = img.shape
-        item.metas['pad_fixed_size'] = None
-        item.metas['pad_size_divisor'] = self.options.get_size_divisor()
-
-
-    def __image2tensor(self, item):
-        """
-        Image to tensor
-        """
-        img = item.data
-        img = np.transpose(img, axes=(2, 0, 1))
-        img = np.expand_dims(img, axis=0)
-        item.data = img
 
 
     @staticmethod
@@ -352,60 +224,6 @@ class SOLO(OnnxModel):
                 rst = (rle, cate_score[idx])
                 masks[cate_label[idx]].append(rst)
             return masks
-
-
-    def create_dataset(self):
-        self.anno = COCO('{}/annotations/instances_val2017.json'.format(self.options.get_data_path()))
-        return read_dataset(self.anno.getImgIds())
-
-
-    def load_data(self, img_id):
-        img_info = self.anno.loadImgs([img_id])[0]
-        img_name = '{}/val2017/{}'.format(self.options.get_data_path(), img_info['file_name'])
-        metas = dict()
-        metas['filename'] = None
-        if isinstance(img_name, str):
-            metas['filename'] = img_name
-            with open(img_name, 'rb') as f:
-                img_buf = f.read()
-            img_np = np.frombuffer(img_buf, np.uint8)
-            img = cv2.imdecode(img_np, cv2.IMREAD_COLOR)
-
-        metas['img_shape'] = img.shape
-        metas['ori_shape'] = img.shape
-        metas['img_fields'] = ['img']
-        return SOLOItem(img, metas, img_id)
-
-
-    def preprocess(self, item):
-        max_h = 0
-        max_w = 0
-        if self.options.get_keep_ratio():
-            self.__imrescale(item)
-        else:
-            self.__imresize(item)
-        self.__normalize(item)
-        self.__pad(item)
-        self.__image2tensor(item)
-        pad_h, pad_w = item.metas['pad_shape'][:2]
-        if pad_h > max_h:
-            max_h = pad_h
-        if pad_w > max_w:
-            max_w = pad_w
-
-        pad_h, pad_w = item.metas['pad_shape'][:2]
-        new_img = np.zeros([1, 3, max_h, max_w], dtype=np.float32)
-        new_img[:, :, :pad_h, :pad_w] = item.data
-
-        item.data = np.squeeze(new_img, axis=(0,))
-        item.metas['ori_shape'] = np.array(
-           item.metas['ori_shape'], dtype=np.int64)
-        item.metas['pad_shape'] = np.array(
-            item.metas['pad_shape'], dtype=np.int64)
-        item.metas['img_shape'] = np.array(
-            item.metas['img_shape'], dtype=np.int64)
-
-        return item
 
 
     def run_internal(self, sess, items):
