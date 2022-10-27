@@ -49,10 +49,6 @@ class SOLOMMDFactory(OnnxModelFactory):
 class SOLOMMD(MMdetectionModel):
     def __init__(self):
         super(SOLOMMD, self).__init__()
-        self.options = self.get_options()
-        self.options.add_argument("--model_path",
-                            default="model/solo_r50_1x-mmdet-op13-fp32.onnx",
-                            help="Onnx path")
         self.options.add_argument('--config',
                             help='test config file path')
         self.options.add_argument('--out_file',

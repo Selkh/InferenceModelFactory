@@ -33,8 +33,6 @@ class MaskRcnnMMDFactory(OnnxModelFactory):
 class MaskRcnnMMD(MMdetectionModel):
     def __init__(self):
         super(MaskRcnnMMD, self).__init__()
-        self.options = self.get_options()
-        self.options.add_argument('--model_path',
-                                  default='./model/maskrcnn-resnet50_fpn_3x_pytorch-mmdetection-op13-fp32-N.onnx',
-                                  help='onnx path')
+
+
        

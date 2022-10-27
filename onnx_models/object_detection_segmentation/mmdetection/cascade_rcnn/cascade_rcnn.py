@@ -33,10 +33,6 @@ class CascadeRcnnMMDFactory(OnnxModelFactory):
 class CascadeRcnnMMD(MMdetectionModel):
     def __init__(self):
         super(CascadeRcnnMMD, self).__init__()
-        self.options = self.get_options()
-        self.options.add_argument('--model_path',
-                                  default='./model/cascade_rcnn-resnet50_fpn_pytorch_20e-mmdetection-op13-fp32-N-topk_static.onnx',
-                                  help='onnx path')
     
     
         
