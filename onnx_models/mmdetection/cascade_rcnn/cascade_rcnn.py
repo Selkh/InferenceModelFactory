@@ -17,9 +17,9 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from onnx_models.object_detection_segmentation.mmdetection.mmdetection import MMdetectionModel
+from onnx_models.mmdetection.mmdetection import MMdetectionModel
 from onnx_models.base import OnnxModelFactory
-            
+
 
 class CascadeRcnnMMDFactory(OnnxModelFactory):
     model = "cascade_rcnn-mmd"
@@ -28,11 +28,6 @@ class CascadeRcnnMMDFactory(OnnxModelFactory):
         return CascadeRcnnMMD()
 
 
-
-
 class CascadeRcnnMMD(MMdetectionModel):
     def __init__(self):
         super(CascadeRcnnMMD, self).__init__()
-    
-    
-        

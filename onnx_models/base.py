@@ -27,7 +27,6 @@ from common.session import BaseSession, SESSION_FACTORY, register_session
 from common.model import Model
 from common.device import Device
 import onnxruntime as rt
-rt.set_default_logger_severity(3)
 import ray
 
 

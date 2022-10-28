@@ -17,7 +17,7 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from onnx_models.object_detection_segmentation.mmdetection.mmdetection import MMdetectionModel
+from onnx_models.mmdetection.mmdetection import MMdetectionModel
 from onnx_models.base import OnnxModelFactory
 from common.model import Model
 import numpy as np

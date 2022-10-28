@@ -18,9 +18,8 @@ limitations under the License.
 # -*- coding: utf-8 -*-
 
 
-from onnx_models.object_detection_segmentation.mmdetection.mmdetection import MMdetectionModel
+from onnx_models.mmdetection.mmdetection import MMdetectionModel
 from onnx_models.base import OnnxModelFactory
-
 
 
 class MaskRcnnMMDFactory(OnnxModelFactory):
@@ -33,6 +32,3 @@ class MaskRcnnMMDFactory(OnnxModelFactory):
 class MaskRcnnMMD(MMdetectionModel):
     def __init__(self):
         super(MaskRcnnMMD, self).__init__()
-
-
-       

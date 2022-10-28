@@ -100,14 +100,13 @@ class CenterNet(OnnxModel):
                                   default=0.05,
                                   help='score threshold')
         self.options.add_argument("--conf-thres",
-                                default=0.005,
-                                help="confidence threshold")
+                                  default=0.005,
+                                  help="confidence threshold")
         self.options.add_argument("--iou-thres",
-                                default=0.45,
-                                help="NMS Iou threshold")
+                                  default=0.45,
+                                  help="NMS Iou threshold")
 
         # TODO : args reset
-        
 
     def create_dataset(self):
         self.anno = COCO(
@@ -147,7 +146,7 @@ class CenterNet(OnnxModel):
 
         inputs = inp_image.transpose(2, 0, 1).reshape(
             1, 3, scale[0], scale[1])
-    
+
         item.data = np.squeeze(inputs, axis=(0,))
         item.metas['ori_shape'] = np.array(
             item.metas['ori_shape'], dtype=np.int64)
@@ -204,15 +203,14 @@ class CenterNet(OnnxModel):
         output_names = get_output_names()
         input_names = get_input_names()
         input_feed = get_input_feed()
-        
+
         items[0].output = sess.run(output_names, input_feed)
-        
+
         return items
 
-
     def _gather_feat(self, feat, ind, mask=None):
-        dim  = feat.size(2)
-        ind  = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
+        dim = feat.size(2)
+        ind = ind.unsqueeze(2).expand(ind.size(0), ind.size(1), dim)
         feat = feat.gather(1, ind)
         if mask is not None:
             mask = mask.unsqueeze(2).expand_as(feat)
@@ -240,15 +238,17 @@ class CenterNet(OnnxModel):
         topk_scores, topk_inds = torch.topk(scores.view(batch, cat, -1), K)
 
         topk_inds = topk_inds % (height * width)
-        topk_ys   = (topk_inds / width).int().float()
-        topk_xs   = (topk_inds % width).int().float()
+        topk_ys = (topk_inds / width).int().float()
+        topk_xs = (topk_inds % width).int().float()
 
         topk_score, topk_ind = torch.topk(topk_scores.view(batch, -1), K)
         topk_clses = (topk_ind / K).int()
         topk_inds = self._gather_feat(
             topk_inds.view(batch, -1, 1), topk_ind).view(batch, K)
-        topk_ys = self._gather_feat(topk_ys.view(batch, -1, 1), topk_ind).view(batch, K)
-        topk_xs = self._gather_feat(topk_xs.view(batch, -1, 1), topk_ind).view(batch, K)
+        topk_ys = self._gather_feat(topk_ys.view(
+            batch, -1, 1), topk_ind).view(batch, K)
+        topk_xs = self._gather_feat(topk_xs.view(
+            batch, -1, 1), topk_ind).view(batch, K)
 
         return topk_score, topk_inds, topk_clses, topk_ys, topk_xs
 
@@ -270,11 +270,12 @@ class CenterNet(OnnxModel):
         wh = self._transpose_and_gather_feat(wh, inds)
         if cat_spec_wh:
             wh = wh.view(batch, K, cat, 2)
-            clses_ind = clses.view(batch, K, 1, 1).expand(batch, K, 1, 2).long()
+            clses_ind = clses.view(batch, K, 1, 1).expand(
+                batch, K, 1, 2).long()
             wh = wh.gather(2, clses_ind).view(batch, K, 2)
         else:
             wh = wh.view(batch, K, 2)
-        clses  = clses.view(batch, K, 1).float()
+        clses = clses.view(batch, K, 1).float()
         scores = scores.view(batch, K, 1)
         bboxes = torch.cat([xs - wh[..., 0:1] / 2,
                             ys - wh[..., 1:2] / 2,
@@ -291,10 +292,14 @@ class CenterNet(OnnxModel):
         down_ratio = 4
         for i in range(dets.shape[0]):
             top_preds = {}
-            dets[i, :, 0] = dets[i, :, 0] * down_ratio * w / self.options.get_scale()[1]
-            dets[i, :, 1] = dets[i, :, 1] * down_ratio * h / self.options.get_scale()[0]
-            dets[i, :, 2] = dets[i, :, 2] * down_ratio * w / self.options.get_scale()[1]
-            dets[i, :, 3] = dets[i, :, 3] * down_ratio * h / self.options.get_scale()[0]
+            dets[i, :, 0] = dets[i, :, 0] * down_ratio * \
+                w / self.options.get_scale()[1]
+            dets[i, :, 1] = dets[i, :, 1] * down_ratio * \
+                h / self.options.get_scale()[0]
+            dets[i, :, 2] = dets[i, :, 2] * down_ratio * \
+                w / self.options.get_scale()[1]
+            dets[i, :, 3] = dets[i, :, 3] * down_ratio * \
+                h / self.options.get_scale()[0]
             classes = dets[i, :, -1]
             for j in range(num_classes):
                 inds = (classes == j)
@@ -312,22 +317,21 @@ class CenterNet(OnnxModel):
         results = []
         num_classes = self.options.get_num_classes()
 
-       
         for i in range(batch_size):
             hm = torch.from_numpy(item.output[0]).sigmoid_()
             wh = torch.from_numpy(item.output[1])
-            reg = torch.from_numpy(item.output[2]) 
-            
-            
+            reg = torch.from_numpy(item.output[2])
+
             dets = self.ctdet_decode(hm, wh, reg=reg, cat_spec_wh=False, K=100)
             dets = dets.numpy()
-            
+
             dets = dets.reshape(1, -1, dets.shape[2])
             dets = self.ctdet_post_process(
                 dets.copy(), item.metas['ori_shape'][0], item.metas['ori_shape'][1], num_classes)
             for j in range(1, num_classes + 1):
-                dets[0][j] = np.array(dets[0][j], dtype=np.float32).reshape(-1, 5)
-        
+                dets[0][j] = np.array(
+                    dets[0][j], dtype=np.float32).reshape(-1, 5)
+
             if dets[0] is not None:
                 for cls_ind in dets[0]:
                     for box in dets[0][cls_ind]:
@@ -337,9 +341,9 @@ class CenterNet(OnnxModel):
                             box[3] -= box[1]
                             bbox_out = list(map(self.to_float, box[0:4]))
                             result = {'image_id': item.img_id,
-                                'category_id': CLASSMAP[cls_ind-1],
-                                'bbox': bbox_out,
-                                'score': np.round(score, 5).tolist()}
+                                      'category_id': CLASSMAP[cls_ind-1],
+                                      'bbox': bbox_out,
+                                      'score': np.round(score, 5).tolist()}
                             # f=open('fix_log.txt',"a")
                             # f.write(str(CLASSMAP[cls_ind-1]) + ' ' + str(bbox_out) + ' ' +str(np.round(score, 5).tolist()) + '\n')
                             # f.close

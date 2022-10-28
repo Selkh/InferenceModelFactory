@@ -20,11 +20,8 @@ limitations under the License.
 from onnx_models.base import OnnxModelFactory, OnnxModel
 from common.dataset import read_dataset, Item
 import numpy as np
-import torch
 import torch.nn as nn
 from common.model import Model
-import copy
-import os
 import pickle as cPickle
 
 
@@ -79,7 +76,7 @@ class Bilstm_Crf(OnnxModel):
         sentence = []  # 一句话中的所有word
         target = []  # 一句话中的所有tag
         with open(self.options.get_data_path(), encoding="utf-8") as f:
-            
+
             ix = -1
             for line in f:
                 ix += 1  # 正在处理第ix行数据,便于后续DEBUG
@@ -106,7 +103,6 @@ class Bilstm_Crf(OnnxModel):
 
         for k, v in tag_to_ix.items():
             self.ix_to_tag[v] = k
-    
 
         return read_dataset(data)
 
@@ -128,8 +124,10 @@ class Bilstm_Crf(OnnxModel):
             i[0] = i[0][:max_length]
             i[1] = i[1][:max_length]
         else:
-            i[0] = i[0] + (max_length - len(i[0])) * [1]  # word2id(list)中缺少的部分补1 self.word_to_ix中'pad'对应1
-            i[1] = i[1] + (max_length - len(i[1])) * [0]  # tag2id(list)中缺少的部分也补0 self.tag_to_ix中'O'对应0
+            # word2id(list)中缺少的部分补1 self.word_to_ix中'pad'对应1
+            i[0] = i[0] + (max_length - len(i[0])) * [1]
+            # tag2id(list)中缺少的部分也补0 self.tag_to_ix中'O'对应0
+            i[1] = i[1] + (max_length - len(i[1])) * [0]
         item.sentence = np.array(i[0])
         item.label = i[1]
 
@@ -138,7 +136,7 @@ class Bilstm_Crf(OnnxModel):
         return item
 
     def run_internal(self, sess, items):
-        
+
         datas = Model.make_batch([item.sentence for item in items])
         a = np.array(datas).astype(np.int64)
         input_data = {"tokens": a,
@@ -159,13 +157,16 @@ class Bilstm_Crf(OnnxModel):
         try:
             for ix in range(len(seq_of_word)):
                 if ix_to_tag[seq_of_tag[ix]][0] == 'B':
-                    entity = [str(ix), ix_to_word[seq_of_word[ix]] + '/' + ix_to_tag[seq_of_tag[ix]]]  # 起始下标
+                    entity = [str(ix), ix_to_word[seq_of_word[ix]] +
+                              '/' + ix_to_tag[seq_of_tag[ix]]]
                 elif ix_to_tag[seq_of_tag[ix]][0] == 'M' and len(entity) != 0 \
                         and entity[-1].split('/')[1][1:] == ix_to_tag[seq_of_tag[ix]][1:]:
-                    entity.append(ix_to_word[seq_of_word[ix]] + '/' + ix_to_tag[seq_of_tag[ix]])
+                    entity.append(
+                        ix_to_word[seq_of_word[ix]] + '/' + ix_to_tag[seq_of_tag[ix]])
                 elif ix_to_tag[seq_of_tag[ix]][0] == 'E' and len(entity) != 0 \
                         and entity[-1].split('/')[1][1:] == ix_to_tag[seq_of_tag[ix]][1:]:
-                    entity.append(ix_to_word[seq_of_word[ix]] + '/' + ix_to_tag[seq_of_tag[ix]])
+                    entity.append(
+                        ix_to_word[seq_of_word[ix]] + '/' + ix_to_tag[seq_of_tag[ix]])
                     entity.append(str(ix))
                     res.append(entity)
                     entity = []
@@ -200,10 +201,12 @@ class Bilstm_Crf(OnnxModel):
             extracted_entities.extend(item[0])
             correct_entities.extend(item[1])
 
-        intersection_entities = [i for i in extracted_entities if i in correct_entities]
+        intersection_entities = [
+            i for i in extracted_entities if i in correct_entities]
 
         if len(intersection_entities) != 0:
-            accuracy = float(len(intersection_entities)) / len(extracted_entities)
+            accuracy = float(len(intersection_entities)) / \
+                len(extracted_entities)
             recall = float(len(intersection_entities)) / len(correct_entities)
             f1 = (2 * accuracy * recall) / (accuracy + recall)
         else:

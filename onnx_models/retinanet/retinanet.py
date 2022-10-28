@@ -107,17 +107,14 @@ class RetinaNet(OnnxModel):
         args.batch_size = 1
         """
 
-
     def create_dataset(self):
         self.anno = COCO(
             '{}/annotations/instances_val2017.json'.format(self.options.get_data_path()))
 
-        
-
         return read_dataset(self.anno.getImgIds()[:5])
 
     def load_data(self, img_id):
-        f=open('fix_log.txt',"a")
+        f = open('fix_log.txt', "a")
         f.write(str(img_id) + '\n')
         f.close
         img_info = self.anno.loadImgs([img_id])[0]
@@ -136,7 +133,6 @@ class RetinaNet(OnnxModel):
         metas['ori_shape'] = img.shape
         metas['img_fields'] = ['img']
         return RetinaNetItem(img, metas, img_id)
-    
 
     def preprocess(self, item):
         '''
@@ -147,12 +143,12 @@ class RetinaNet(OnnxModel):
         img = item.data
         h, w, _ = img.shape
         scale = min(800 / h, 1216 / w)
-        resized = cv2.resize(img, dsize = None, fx = scale, fy = scale)
+        resized = cv2.resize(img, dsize=None, fx=scale, fy=scale)
         h, w, _ = resized.shape
-        padded = np.pad(resized, [[0,800 - h],[0,1216 - w],[0,0]])
+        padded = np.pad(resized, [[0, 800 - h], [0, 1216 - w], [0, 0]])
         normalized = (padded - np.array([103.530, 116.280, 123.675]))
-        inputs = np.expand_dims(normalized, axis = 0).astype(np.float32)
-        inputs = np.transpose(inputs, (0,3,1,2))
+        inputs = np.expand_dims(normalized, axis=0).astype(np.float32)
+        inputs = np.transpose(inputs, (0, 3, 1, 2))
 
         item.data = np.squeeze(inputs, axis=(0,))
         item.metas['scale'] = scale
@@ -166,6 +162,7 @@ class RetinaNet(OnnxModel):
     def run_internal(self, sess, items):
         datas = Model.make_batch([item.data for item in items])
         # TODO : common func
+
         def get_input_feed():
             """
             Feed input tensors to model inputs
@@ -215,17 +212,16 @@ class RetinaNet(OnnxModel):
         # f.write(str(input_feed['input'].shape) + '\n')
         # f.close
 
-       
-        
         items[0].output = sess.run(output_names, input_feed)
         return items
 
     def postprocess(self, item):
         dets, labels = item.output
 
-        batch_dets = np.squeeze(dets, axis = 0)
-        batch_labels = np.squeeze(labels, axis = 0)
-        batch_dets, batch_scores = batch_dets[:,:4].copy(), batch_dets[:,4].copy()
+        batch_dets = np.squeeze(dets, axis=0)
+        batch_labels = np.squeeze(labels, axis=0)
+        batch_dets, batch_scores = batch_dets[:, :4].copy(
+        ), batch_dets[:, 4].copy()
         scale = item.metas['scale']
         batch_dets /= scale
 
@@ -235,7 +231,7 @@ class RetinaNet(OnnxModel):
         num_classes = self.options.get_num_classes()
         for i in range(batch_size):
             dets, labels, scores = batch_dets, batch_labels, batch_scores
-            
+
             for box, score, label in zip(dets, scores, labels):
                 if score > self.options.get_threshold():
                     # f=open('fix_log.txt',"a")
@@ -246,11 +242,10 @@ class RetinaNet(OnnxModel):
                     xmax = float(box[2])
                     ymax = float(box[3])
                     result = {'image_id': item.img_id,
-                                'category_id': CLASSMAP[label],
-                                'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
-                                'score': float(score)}
+                              'category_id': CLASSMAP[label],
+                              'bbox': [xmin, ymin, xmax - xmin, ymax - ymin],
+                              'score': float(score)}
                     results.append(result)
-                    
 
         return results
 

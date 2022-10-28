@@ -22,7 +22,6 @@ from common.dataset import read_dataset, Item
 from PIL import Image
 import cv2
 import numpy as np
-# import copy
 from pycocotools.coco import COCO
 from pycocotools.cocoeval import COCOeval
 import pycocotools.mask as mask_util

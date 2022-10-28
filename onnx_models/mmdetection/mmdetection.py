@@ -44,14 +44,13 @@ class MMdetectionItem(Item):
         self.batch_masks = None
 
 
-
 class MMdetectionModel(OnnxModel):
     def __init__(self):
         super(MMdetectionModel, self).__init__()
         self.options = self.get_options()
         self.options.add_argument("--model_path",
-                            default="model/solo_r50_1x-mmdet-op13-fp32.onnx",
-                            help="Onnx path")
+                                  default="model/solo_r50_1x-mmdet-op13-fp32.onnx",
+                                  help="Onnx path")
         self.options.add_argument('--data_path',
                                   default='./coco',
                                   type=str,
@@ -92,8 +91,8 @@ class MMdetectionModel(OnnxModel):
                                   default=1,
                                   help="batch_size")
 
-
     # TODO : common func
+
     def __imresize(self, item):
         """
         Resize image
@@ -214,7 +213,6 @@ class MMdetectionModel(OnnxModel):
         metas['img_fields'] = ['img']
         return MMdetectionItem(img, metas, img_id)
 
-    
     def preprocess(self, item):
         max_h = 0
         max_w = 0
@@ -245,7 +243,6 @@ class MMdetectionModel(OnnxModel):
 
         return item
 
-    
     def run_internal(self, sess, items):
         datas = Model.make_batch([item.data for item in items])
 
@@ -297,30 +294,25 @@ class MMdetectionModel(OnnxModel):
 
         outputs = sess.run(output_names, input_feed)
 
-
-
         for z in zip(items, outputs[0]):
             Model.assignment(*z, 'dets')
         for z in zip(items, outputs[1]):
             Model.assignment(*z, 'labels')
-        if len( outputs) == 3:
+        if len(outputs) == 3:
             for z in zip(items, outputs[2]):
                 Model.assignment(*z, 'batch_masks')
 
         return items
 
-    
     def postprocess(self, item):
 
         num_classes = self.options.get_num_classes()
         de = []
         post_rescale = True
         if 'mask' in self.options.get_model_path():
-                post_rescale = False
+            post_rescale = False
 
-        
         dets, labels = item.dets.copy(), item.labels.copy()
-
 
         if post_rescale:
             scale_factor = item.metas['scale_factor']
@@ -384,9 +376,7 @@ class MMdetectionModel(OnnxModel):
                         result['segmentation'] = mask
                     results.append(result)
 
-        return results 
-    
-    
+        return results
 
     def eval(self, collections):
         results = sum(collections, [])
