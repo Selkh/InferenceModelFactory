@@ -17,7 +17,7 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from .base import OnnxModelFactory, OnnxModel
+from onnx_models.base import OnnxModelFactory, OnnxModel
 from common.model import Model
 
 
