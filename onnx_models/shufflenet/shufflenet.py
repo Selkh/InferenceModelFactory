@@ -17,7 +17,7 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from onnx_models.classification.torchvision.torchvision import TorchVisionModel
+from onnx_models.common_classification import ClassificationModel
 from onnx_models.base import OnnxModelFactory
 import numpy as np
 from scipy.special import softmax
@@ -30,10 +30,9 @@ class ShuffleNetTVFactory(OnnxModelFactory):
         return ShuffleNetTV()
 
 
-class ShuffleNetTV(TorchVisionModel):
+class ShuffleNetTV(ClassificationModel):
     def __init__(self):
         super(ShuffleNetTV, self).__init__()
-
 
     def postprocess(self, item):
         item.res = np.expand_dims(item.res, axis=0)

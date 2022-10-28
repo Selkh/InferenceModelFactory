@@ -17,7 +17,7 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from onnx_models.classification.classification import ClassificationModel
+from onnx_models.common_classification import ClassificationModel
 from onnx_models.base import OnnxModelFactory
 from common.data_process.img_preprocess import img_resize, img_center_crop
 import numpy as np

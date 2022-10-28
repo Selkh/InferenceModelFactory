@@ -19,7 +19,7 @@ limitations under the License.
 
 import os
 from PIL import Image
-from onnx_models.base import OnnxModel
+from onnx_models.base import OnnxModel, OnnxModelFactory
 from common.dataset import read_text, Item
 from common.model import Model
 from common.data_process.img_preprocess import img_resize, img_center_crop
@@ -32,6 +32,7 @@ class ClassificationItem(Item):
         self.data = data
         self.name = name
         self.label = label
+
 
 class ClassificationModel(OnnxModel):
     def __init__(self):
@@ -46,7 +47,7 @@ class ClassificationModel(OnnxModel):
                                   type=int,
                                   help='model input image width')
         self.options.add_argument('--model_path',
-                                  default='mobilenet_v2-torchvision-op13-fp32-N.onnx',
+                                  required=True,
                                   help='onnx path')
         self.options.add_argument("--data_path",
                                   help="dataset path")
@@ -107,7 +108,8 @@ class ClassificationModel(OnnxModel):
         return topk_ind_unsort
 
     def postprocess(self, item):
-        # TODO: item.res shape is (1001,). it has no batch dimension, neither does item.label
+        # TODO: item.res shape is (1001,). it has no batch dimension, neither
+        # does item.label
         item.res = np.expand_dims(item.res, axis=0)
         item.label = np.expand_dims(item.label, axis=0)
 
@@ -121,7 +123,117 @@ class ClassificationModel(OnnxModel):
 
     def eval(self, collections):
         collections = np.array(collections)
-        final_result = {"acc1": np.sum(collections[:, 0])/len(collections[:, 0]),
-                        "acc5": np.sum(collections[:, 1])/len(collections[:, 1])}
+        final_result = {
+            "acc1": np.sum(collections[:, 0])/len(collections[:, 0]),
+            "acc5": np.sum(collections[:, 1])/len(collections[:, 1])
+        }
         print("final_result:", final_result)
         return final_result
+
+
+class Res2net5026w4sPPFactory(OnnxModelFactory):
+    model = "res2net50_26w_4s-pp"
+
+    def new_model():
+        return Res2net5026w4sPP()
+
+
+class Res2net5026w4sPP(ClassificationModel):
+    def __init__(self):
+        super(Res2net5026w4sPP, self).__init__()
+
+
+class SeResnet50VdPPFactory(OnnxModelFactory):
+    model = "se_resnet50_vd-pp"
+
+    def new_model():
+        return SeResnet50VdPP()
+
+
+class SeResnet50VdPP(ClassificationModel):
+    def __init__(self):
+        super(SeResnet50VdPP, self).__init__()
+
+
+class DenseNet121TVFactory(OnnxModelFactory):
+    model = "densenet121-tv"
+
+    def new_model():
+        return DenseNet121TV()
+
+
+class DenseNet121TV(ClassificationModel):
+    def __init__(self):
+        super(DenseNet121TV, self).__init__()
+
+
+class GoogleNetTVFactory(OnnxModelFactory):
+    model = "googlenet-tv"
+
+    def new_model():
+        return GoogleNetTV()
+
+
+class GoogleNetTV(ClassificationModel):
+    def __init__(self):
+        super(GoogleNetTV, self).__init__()
+
+
+class InceptionTVFactory(OnnxModelFactory):
+    model = "inception-tv"
+
+    def new_model():
+        return InceptionTV()
+
+
+class InceptionTV(ClassificationModel):
+    def __init__(self):
+        super(InceptionTV, self).__init__()
+
+
+class MobileNetV2TVFactory(OnnxModelFactory):
+    model = "mobilenetv2-tv"
+
+    def new_model():
+        return MobileNetV2TV()
+
+
+class MobileNetV2TV(ClassificationModel):
+    def __init__(self):
+        super(MobileNetV2TV, self).__init__()
+
+
+class MobileNetV3TVFactory(OnnxModelFactory):
+    model = "mobilenetv3-tv"
+
+    def new_model():
+        return MobileNetV3TV()
+
+
+class MobileNetV3TV(ClassificationModel):
+    def __init__(self):
+        super(MobileNetV3TV, self).__init__()
+
+
+class ResNet50TVFactory(OnnxModelFactory):
+    model = "resnet50-tv"
+
+    def new_model():
+        return ResNet50TV()
+
+
+class ResNet50TV(ClassificationModel):
+    def __init__(self):
+        super(ResNet50TV, self).__init__()
+
+
+class SqueezenetTVFactory(OnnxModelFactory):
+    model = "squeezenet-tv"
+
+    def new_model():
+        return SqueezenetTV()
+
+
+class SqueezenetTV(ClassificationModel):
+    def __init__(self):
+        super(SqueezenetTV, self).__init__()

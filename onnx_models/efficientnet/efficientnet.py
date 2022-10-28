@@ -17,17 +17,32 @@ limitations under the License.
 # !/usr/bin/python
 # -*- coding: utf-8 -*-
 
-from onnx_models.classification.torchvision.torchvision import TorchVisionModel
+from onnx_models.common_classification import ClassificationModel
 from onnx_models.base import OnnxModelFactory
+import numpy as np
+from scipy.special import softmax
 
 
-class SqueezenetTVFactory(OnnxModelFactory):
-    model = "squeezenet-tv"
+class EfficientNetTVFactory(OnnxModelFactory):
+    model = "efficientnet-tv"
 
     def new_model():
-        return SqueezenetTV()
+        return EfficientNetTV()
 
 
-class SqueezenetTV(TorchVisionModel):
+class EfficientNetTV(ClassificationModel):
     def __init__(self):
-        super(SqueezenetTV, self).__init__()
+        super(EfficientNetTV, self).__init__()
+
+    def postprocess(self, item):
+        item.res = np.expand_dims(item.res, axis=0)
+        item.res = softmax(item.res, axis=1)
+        item.label = np.expand_dims(item.label, axis=0)
+
+        pred = np.argmax(item.res, axis=-1)
+        acc1 = 1 if pred == item.label else 0
+
+        indices = self.arg_topk(item.res)
+        acc5 = (item.label[..., None] == indices).any(axis=-1).sum()
+
+        return acc1, acc5
